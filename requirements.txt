@@ -1,0 +1,7 @@
+playwright
+playwright-stealth
+customtkinter
+win10toast
+requests
+beautifulsoup4
+Pillow
