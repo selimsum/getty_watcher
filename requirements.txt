@@ -2,6 +2,7 @@ playwright
 playwright-stealth
 customtkinter
 win10toast
+pywin32
 requests
 beautifulsoup4
 Pillow

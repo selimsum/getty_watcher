@@ -10,7 +10,13 @@ import requests
 import re
 from tkinter import messagebox
 from PIL import Image, ImageTk
-from win10toast import ToastNotifier
+try:
+    from win10toast import ToastNotifier
+except Exception as e:
+    ToastNotifier = None
+    TOAST_IMPORT_ERROR = e
+else:
+    TOAST_IMPORT_ERROR = None
 from model import StateManager
 from scraper import GettyScraper
 
@@ -154,7 +160,7 @@ class App(ctk.CTk):
         self.scraper = GettyScraper()
         self.is_checking = False
         self.stop_requested = False
-        self.toaster = ToastNotifier()
+        self.toaster = ToastNotifier() if ToastNotifier is not None else None
         self.logs_visible = True
 
         self._setup_layout()
@@ -163,6 +169,8 @@ class App(ctk.CTk):
         self.redirector = RedirectText(self.log_textbox)
         sys.stdout = self.redirector
         sys.stderr = self.redirector
+        if TOAST_IMPORT_ERROR is not None:
+            self.log(f"Windows notifications unavailable: {TOAST_IMPORT_ERROR}")
 
     def _setup_icon(self):
         try:
@@ -308,8 +316,33 @@ class App(ctk.CTk):
         
         if new_images:
             self._batch_download(kw, new_images)
+            self.notify_new_images(kw, len(new_images))
         
         return len(new_images)
+
+    def notify_new_images(self, keyword, count):
+        if self.toaster is None:
+            return
+
+        title = "Getty Images Watcher"
+        plural = "image" if count == 1 else "images"
+        message = f"{count} new {plural} found for {keyword}"
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        if not os.path.exists(icon_path):
+            icon_path = None
+
+        try:
+            shown = self.toaster.show_toast(
+                title,
+                message,
+                icon_path=icon_path,
+                duration=8,
+                threaded=True,
+            )
+            if not shown:
+                self.log("Windows notification skipped because another notification is still active.")
+        except Exception as e:
+            self.log(f"Windows notification failed: {e}")
 
     def _batch_download(self, kw, images):
         self.log(f"Batch downloading {len(images)} images for {kw}...")
