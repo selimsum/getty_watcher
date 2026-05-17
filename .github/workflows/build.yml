@@ -6,16 +6,16 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: '3.10' # Choose appropriate Python version
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
@@ -29,8 +29,17 @@ jobs:
     - name: Build executable
       run: python build_app.py
 
+    - name: Verify executable
+      shell: pwsh
+      run: |
+        if (-not (Test-Path "dist/GettyWatcher.exe")) {
+          throw "Expected executable was not created: dist/GettyWatcher.exe"
+        }
+
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
-        name: GettyWatcher-exe-${{ github.sha }}
+        name: GettyWatcher.exe
         path: dist/GettyWatcher.exe
+        if-no-files-found: error
+        compression-level: 0

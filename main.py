@@ -188,10 +188,15 @@ class App(ctk.CTk):
         self.stop_requested = False
         self.toaster = ToastNotifier() if ToastNotifier is not None else None
         self.logs_visible = True
+        self.side_pane_visible = True
+        self.active_side_view = "logs"
         self.last_check_text = tk.StringVar(value="Last check: Never")
         self.new_images_text = tk.StringVar(value="New images: 0")
         self.status_text = tk.StringVar(value="Status: Idle")
         self.save_location_text = tk.StringVar(value=f"Save folder: {self._display_download_dir()}")
+        self.settings_path_var = tk.StringVar(value=self._display_download_dir())
+        self.settings_notifications_var = tk.BooleanVar(value=self.state_manager.get_setting("notifications_enabled") is not False)
+        self.settings_feedback_text = tk.StringVar(value="")
 
         self._setup_layout()
         
@@ -237,14 +242,21 @@ class App(ctk.CTk):
         self.keywords_view = KeywordsFrame(self.main_container, self.state_manager, self.check_single_keyword, self.stop_check)
         self.keywords_view.grid(row=0, column=0, sticky="nsew")
 
-        self.log_frame = ctk.CTkFrame(self.main_container, width=300, corner_radius=0)
-        self.log_frame.grid(row=0, column=1, sticky="nsew")
-        self.log_frame.grid_columnconfigure(0, weight=1)
-        self.log_frame.grid_rowconfigure(1, weight=1)
+        self.side_pane = ctk.CTkFrame(self.main_container, width=320, corner_radius=0)
+        self.side_pane.grid(row=0, column=1, sticky="nsew")
+        self.side_pane.grid_columnconfigure(0, weight=1)
+        self.side_pane.grid_rowconfigure(0, weight=1)
         
-        ctk.CTkLabel(self.log_frame, text="Application Logs", anchor="w", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w", padx=5, pady=(10, 2))
-        self.log_textbox = ctk.CTkTextbox(self.log_frame, font=("Consolas", 10), width=280)
-        self.log_textbox.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+        self.log_view = ctk.CTkFrame(self.side_pane, corner_radius=0)
+        self.log_view.grid_columnconfigure(0, weight=1)
+        self.log_view.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(self.log_view, text="Application Logs", anchor="w", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 2))
+        self.log_textbox = ctk.CTkTextbox(self.log_view, font=("Consolas", 10), width=300)
+        self.log_textbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+
+        self.settings_view = self._build_settings_view(self.side_pane)
+        self.about_view = self._build_about_view(self.side_pane)
+        self._show_side_view("logs")
 
         self.status_bar = ctk.CTkFrame(self, corner_radius=0)
         self.status_bar.grid(row=2, column=0, sticky="ew")
@@ -433,99 +445,117 @@ class App(ctk.CTk):
         except Exception:
             return None
 
+    def _build_settings_view(self, parent):
+        frame = ctk.CTkFrame(parent, corner_radius=0)
+        frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(frame, text="Settings", font=("Arial", 18, "bold")).grid(row=0, column=0, padx=16, pady=(18, 10), sticky="w")
+        ctk.CTkLabel(frame, text="Download location", anchor="w").grid(row=1, column=0, padx=16, pady=(8, 4), sticky="w")
+
+        path_entry = ctk.CTkEntry(frame, textvariable=self.settings_path_var)
+        path_entry.grid(row=2, column=0, padx=16, pady=(0, 8), sticky="ew")
+
+        path_buttons = ctk.CTkFrame(frame, fg_color="transparent")
+        path_buttons.grid(row=3, column=0, padx=16, pady=(0, 12), sticky="ew")
+        path_buttons.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkButton(path_buttons, text="Browse...", command=self.browse_download_folder).grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        ctk.CTkButton(path_buttons, text="Open Folder", command=lambda: self.open_download_folder(self.settings_path_var.get())).grid(row=0, column=1, padx=(6, 0), sticky="ew")
+
+        ctk.CTkCheckBox(
+            frame,
+            text="Show system notifications",
+            variable=self.settings_notifications_var,
+        ).grid(row=4, column=0, padx=16, pady=(4, 12), sticky="w")
+
+        ctk.CTkLabel(frame, textvariable=self.settings_feedback_text, anchor="w", text_color="gray", wraplength=280).grid(row=5, column=0, padx=16, pady=(0, 12), sticky="ew")
+
+        action_buttons = ctk.CTkFrame(frame, fg_color="transparent")
+        action_buttons.grid(row=6, column=0, padx=16, pady=(4, 18), sticky="ew")
+        action_buttons.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkButton(action_buttons, text="Reset", command=self.reset_settings_defaults).grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        ctk.CTkButton(action_buttons, text="Save", command=self.save_settings).grid(row=0, column=1, padx=(6, 0), sticky="ew")
+
+        return frame
+
+    def _build_about_view(self, parent):
+        frame = ctk.CTkFrame(parent, corner_radius=0)
+        frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(frame, text="About", font=("Arial", 18, "bold")).grid(row=0, column=0, padx=16, pady=(18, 12), sticky="w")
+        ctk.CTkLabel(frame, text=APP_NAME, font=("Arial", 16, "bold")).grid(row=1, column=0, padx=16, pady=(4, 2), sticky="w")
+        ctk.CTkLabel(frame, text=f"Version {APP_VERSION}", text_color="gray").grid(row=2, column=0, padx=16, pady=(0, 12), sticky="w")
+        ctk.CTkLabel(frame, text=APP_DESCRIPTION, wraplength=280, justify="left").grid(row=3, column=0, padx=16, pady=4, sticky="w")
+        ctk.CTkLabel(frame, text="License: MIT", text_color="gray").grid(row=4, column=0, padx=16, pady=(14, 4), sticky="w")
+        ctk.CTkLabel(frame, text=f"Python {sys.version.split()[0]}", text_color="gray").grid(row=5, column=0, padx=16, pady=4, sticky="w")
+
+        return frame
+
+    def _show_side_view(self, view_name):
+        for view in (self.log_view, self.settings_view, self.about_view):
+            view.grid_remove()
+
+        views = {
+            "logs": self.log_view,
+            "settings": self.settings_view,
+            "about": self.about_view,
+        }
+        views[view_name].grid(row=0, column=0, sticky="nsew")
+        self.active_side_view = view_name
+        self.side_pane.grid()
+        self.main_container.grid_columnconfigure(1, weight=1)
+        self.side_pane_visible = True
+        self.logs_visible = view_name == "logs"
+        self.toolbar_logs_btn.configure(text="Hide Logs" if view_name == "logs" else "Show Logs")
+
+    def browse_download_folder(self):
+        chosen = filedialog.askdirectory(
+            parent=self,
+            initialdir=self._absolute_download_dir(self.settings_path_var.get()),
+        )
+        if chosen:
+            self.settings_path_var.set(chosen)
+            self.settings_feedback_text.set("")
+
+    def reset_settings_defaults(self):
+        self.settings_path_var.set(DEFAULT_DOWNLOAD_DIR)
+        self.settings_feedback_text.set("Default download folder selected.")
+
+    def save_settings(self):
+        selected = self.settings_path_var.get().strip() or DEFAULT_DOWNLOAD_DIR
+        try:
+            os.makedirs(self._absolute_download_dir(selected), exist_ok=True)
+        except Exception as e:
+            self.settings_feedback_text.set(f"Could not use this folder: {e}")
+            return
+
+        self.state_manager.set_setting("download_dir", selected)
+        self.state_manager.set_setting("notifications_enabled", bool(self.settings_notifications_var.get()))
+        self._refresh_save_location()
+        self.settings_feedback_text.set("Settings saved.")
+
     def toggle_logs(self):
-        if self.logs_visible:
-            self.log_frame.grid_remove()
+        if self.side_pane_visible and self.active_side_view == "logs":
+            self.side_pane.grid_remove()
             self.main_container.grid_columnconfigure(1, weight=0)
             self.toolbar_logs_btn.configure(text="Show Logs")
+            self.side_pane_visible = False
             self.logs_visible = False
         else:
-            self.log_frame.grid()
+            self._show_side_view("logs")
+            self.side_pane.grid()
             self.main_container.grid_columnconfigure(1, weight=1)
             self.toolbar_logs_btn.configure(text="Hide Logs")
+            self.side_pane_visible = True
             self.logs_visible = True
 
     def show_settings(self):
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("Settings")
-        dialog.geometry("620x270")
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(dialog, text="Settings", font=("Arial", 18, "bold")).grid(row=0, column=0, columnspan=3, padx=20, pady=(20, 10), sticky="w")
-        ctk.CTkLabel(dialog, text="Download location", anchor="w").grid(row=1, column=0, columnspan=3, padx=20, pady=(5, 4), sticky="w")
-
-        path_var = tk.StringVar(value=self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
-        notifications_var = tk.BooleanVar(value=self.state_manager.get_setting("notifications_enabled") is not False)
-        path_entry = ctk.CTkEntry(dialog, textvariable=path_var)
-        path_entry.grid(row=2, column=0, padx=(20, 8), pady=4, sticky="ew")
-
-        def browse():
-            chosen = filedialog.askdirectory(parent=dialog, initialdir=self._absolute_download_dir(path_var.get()))
-            if chosen:
-                path_var.set(chosen)
-
-        ctk.CTkButton(dialog, text="Browse...", width=90, command=browse).grid(row=2, column=1, padx=(0, 8), pady=4)
-        ctk.CTkButton(dialog, text="Open Folder", width=110, command=lambda: self.open_download_folder(path_var.get())).grid(row=2, column=2, padx=(0, 20), pady=4)
-
-        feedback = ctk.CTkLabel(dialog, text="", anchor="w", text_color="gray")
-        feedback.grid(row=3, column=0, columnspan=3, padx=20, pady=(4, 10), sticky="w")
-
-        notifications_checkbox = ctk.CTkCheckBox(
-            dialog,
-            text="Show system notifications when new images are found",
-            variable=notifications_var,
-        )
-        notifications_checkbox.grid(row=4, column=0, columnspan=3, padx=20, pady=(4, 10), sticky="w")
-
-        def reset_default():
-            path_var.set(DEFAULT_DOWNLOAD_DIR)
-            feedback.configure(text="Default download folder selected.")
-
-        def save():
-            selected = path_var.get().strip() or DEFAULT_DOWNLOAD_DIR
-            try:
-                os.makedirs(self._absolute_download_dir(selected), exist_ok=True)
-            except Exception as e:
-                feedback.configure(text=f"Could not use this folder: {e}", text_color="red")
-                return
-
-            self.state_manager.set_setting("download_dir", selected)
-            self.state_manager.set_setting("notifications_enabled", bool(notifications_var.get()))
-            self._refresh_save_location()
-            feedback.configure(text="Settings saved.", text_color="green")
-
-        ctk.CTkButton(dialog, text="Reset to Default", width=130, command=reset_default).grid(row=5, column=0, padx=20, pady=(10, 20), sticky="w")
-        ctk.CTkButton(dialog, text="Save", width=90, command=save).grid(row=5, column=1, padx=(0, 8), pady=(10, 20), sticky="e")
-        ctk.CTkButton(dialog, text="Close", width=90, command=dialog.destroy).grid(row=5, column=2, padx=(0, 20), pady=(10, 20), sticky="e")
+        self.settings_path_var.set(self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
+        self.settings_notifications_var.set(self.state_manager.get_setting("notifications_enabled") is not False)
+        self.settings_feedback_text.set("")
+        self._show_side_view("settings")
 
     def show_about(self):
-        dialog = ctk.CTkToplevel(self)
-        dialog.title("About")
-        dialog.geometry("460x300")
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(dialog, text=APP_NAME, font=("Arial", 20, "bold")).grid(row=0, column=0, padx=24, pady=(24, 4), sticky="w")
-        ctk.CTkLabel(dialog, text=f"Version {APP_VERSION}", text_color="gray").grid(row=1, column=0, padx=24, pady=(0, 12), sticky="w")
-        ctk.CTkLabel(dialog, text=APP_DESCRIPTION, wraplength=400, justify="left").grid(row=2, column=0, padx=24, pady=4, sticky="w")
-        ctk.CTkLabel(dialog, text="License: MIT", text_color="gray").grid(row=3, column=0, padx=24, pady=(12, 4), sticky="w")
-        ctk.CTkLabel(dialog, text=f"Python {sys.version.split()[0]}", text_color="gray").grid(row=4, column=0, padx=24, pady=4, sticky="w")
-
-        button_frame = ctk.CTkFrame(dialog, fg_color="transparent")
-        button_frame.grid(row=5, column=0, padx=24, pady=(20, 24), sticky="ew")
-        button_frame.grid_columnconfigure(0, weight=1)
-        ctk.CTkButton(button_frame, text="Open README", command=self.open_readme).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(button_frame, text="Close", width=90, command=dialog.destroy).grid(row=0, column=1, sticky="e")
-
-    def open_readme(self):
-        readme_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
-        if os.path.exists(readme_path):
-            webbrowser.open(readme_path)
-        else:
-            messagebox.showinfo(APP_NAME, "README.md was not found.")
+        self._show_side_view("about")
 
     def open_download_folder(self, path=None):
         target = self._absolute_download_dir(path or self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
