@@ -1,6 +1,8 @@
 name: Build Executable
 
-on: [push]
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -30,5 +32,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: GettyWatcher-exe
+        name: GettyWatcher-exe-${{ github.sha }}
         path: dist/GettyWatcher.exe

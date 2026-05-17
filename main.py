@@ -7,6 +7,7 @@ import time
 import datetime
 import requests
 import re
+import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 try:
