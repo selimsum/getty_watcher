@@ -112,6 +112,22 @@ def test_image_tracking(state_manager):
     state_manager.update_seen_images("cats", ["img2", "img3"])
     assert set(state_manager.get_seen_images("cats")) == {"img1", "img2", "img3"}
 
+def test_update_seen_images_no_new_ids(state_manager):
+    """Test that update_seen_images avoids saving if no new IDs are added."""
+    state_manager.update_seen_images("cats", ["img1", "img2"])
+
+    with patch.object(state_manager, 'save_data') as mock_save:
+        state_manager.update_seen_images("cats", ["img1", "img2"])
+        mock_save.assert_not_called()
+
+def test_update_seen_images_preserves_order(state_manager):
+    """Test that update_seen_images adds new elements to the end and preserves existing order."""
+    state_manager.update_seen_images("cats", ["img1", "img2"])
+    state_manager.update_seen_images("cats", ["img3", "img1", "img4"])
+
+    seen = state_manager.get_seen_images("cats")
+    assert seen == ["img1", "img2", "img3", "img4"]
+
 def test_update_seen_images_max_history(state_manager):
     """Test that update_seen_images respects MAX_HISTORY."""
     # Temporarily reduce MAX_HISTORY for testing
