@@ -149,3 +149,14 @@ def test_thread_safety(state_manager):
     # Since `save_data` holds a lock for file writes and `seen.append()` is atomic under the GIL,
     # all concurrent updates should be preserved safely.
     assert len(seen) == num_threads * num_images_per_thread
+
+def test_load_data_invalid_json(temp_data_file):
+    """Test _load_data handles invalid JSON gracefully."""
+    with open(temp_data_file, "w") as f:
+        f.write("{invalid}")
+
+    sm = model.StateManager()
+    assert sm.data["keywords"] == []
+    assert sm.data["seen_images"] == {}
+    assert sm.data["settings"]["auto_download"] is False
+    assert sm.data["settings"]["cutoff_date"] == ""
