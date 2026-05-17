@@ -1,6 +1,5 @@
 import customtkinter as ctk
 import threading
-import tkinter as tk
 import sys
 import os
 import webbrowser
