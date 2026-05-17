@@ -405,7 +405,10 @@ class App(ctk.CTk):
 
     def _batch_download(self, kw, images):
         self.log(f"Batch downloading {len(images)} images for {kw}...")
-        url_map = self.scraper.get_full_res_urls_batch([img['url'] for img in images])
+        url_map = self.scraper.get_full_res_urls_batch(
+            [img['url'] for img in images],
+            should_stop=lambda: self.stop_requested,
+        )
         
         for i, img in enumerate(images):
             if self.stop_requested:

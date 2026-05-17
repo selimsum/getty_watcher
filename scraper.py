@@ -150,7 +150,15 @@ class GettyScraper:
         res = self.get_full_res_urls_batch([page_url])
         return res.get(page_url)
 
-    def get_full_res_urls_batch(self, page_urls):
+    def _stop_aware_sleep(self, seconds, should_stop=None):
+        end_time = time.time() + seconds
+        while time.time() < end_time:
+            if should_stop and should_stop():
+                return True
+            time.sleep(min(0.25, end_time - time.time()))
+        return False
+
+    def get_full_res_urls_batch(self, page_urls, should_stop=None):
         """Fetches full resolution URLs for a list of page URLs in a single browser session."""
         results = {}
         if not page_urls:
@@ -165,13 +173,27 @@ class GettyScraper:
                 page = context.new_page()
 
                 for i, url in enumerate(page_urls):
+                    if should_stop and should_stop():
+                        print("[Scraper] Stop requested during batch fetch.")
+                        break
+
                     print(f"[Scraper] Fetching {i+1}/{len(page_urls)}: {url}")
                     for attempt in range(2):
+                        if should_stop and should_stop():
+                            print("[Scraper] Stop requested during batch fetch.")
+                            break
+
                         try:
                             response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                            if should_stop and should_stop():
+                                print("[Scraper] Stop requested during batch fetch.")
+                                break
+
                             if self._is_blocked(page, response):
                                 wait_time = 10 + (attempt * 5)
-                                time.sleep(wait_time)
+                                if self._stop_aware_sleep(wait_time, should_stop):
+                                    print("[Scraper] Stop requested during batch fetch.")
+                                    break
                                 continue
                             
                             content = page.content()
@@ -185,9 +207,16 @@ class GettyScraper:
                                 
                         except Exception as e:
                             print(f"[Scraper] Error fetching {url}: {e}")
-                            time.sleep(2)
+                            if self._stop_aware_sleep(2, should_stop):
+                                print("[Scraper] Stop requested during batch fetch.")
+                                break
+
+                    if should_stop and should_stop():
+                        break
                             
-                    time.sleep(2.0 + random.uniform(0.5, 2.0))
+                    if self._stop_aware_sleep(2.0 + random.uniform(0.5, 2.0), should_stop):
+                        print("[Scraper] Stop requested during batch fetch.")
+                        break
                 
                 browser.close()
         except Exception as e:
