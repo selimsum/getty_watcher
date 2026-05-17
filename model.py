@@ -3,7 +3,7 @@ import os
 import threading
 
 DATA_FILE = "data.json"
-MAX_HISTORY = 10000 # Keep history to allow backfilling/skipping known images
+MAX_HISTORY = 300 # Keep history to allow backfilling/skipping known images
 DEFAULT_DOWNLOAD_DIR = "downloads"
 
 
@@ -60,10 +60,24 @@ class StateManager:
     def save_data(self):
         with self.lock:
             try:
+                self._prune_seen_images()
                 with open(DATA_FILE, "w", encoding="utf-8") as f:
                     json.dump(self.data, f, indent=4, ensure_ascii=False)
             except Exception as e:
                 print(f"Error saving data: {e}")
+
+    def _prune_seen_images(self):
+        active_keywords = set(self.data.get("keywords", []))
+        seen_images = self.data.setdefault("seen_images", {})
+
+        for keyword in list(seen_images):
+            if active_keywords and keyword not in active_keywords:
+                del seen_images[keyword]
+                continue
+
+            seen = seen_images[keyword]
+            if isinstance(seen, list) and len(seen) > MAX_HISTORY:
+                seen_images[keyword] = seen[-MAX_HISTORY:]
 
     def get_keywords(self):
         return self.data.get("keywords", [])
