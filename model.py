@@ -21,7 +21,8 @@ class StateManager:
             "settings": {
                 "auto_download": False,
                 "cutoff_date": "", # format: YYYY-MM-DD
-                "download_dir": DEFAULT_DOWNLOAD_DIR
+                "download_dir": DEFAULT_DOWNLOAD_DIR,
+                "notifications_enabled": True
             }
         }
         if not os.path.exists(DATA_FILE):

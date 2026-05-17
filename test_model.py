@@ -4,6 +4,7 @@ import threading
 import pytest
 from unittest.mock import patch
 import model
+import main
 import time
 
 @pytest.fixture
@@ -37,7 +38,12 @@ def test_load_data_existing_file(temp_data_file):
         json.dump(test_data, f)
 
     sm = model.StateManager()
-    assert sm.data == test_data
+    assert sm.data["keywords"] == test_data["keywords"]
+    assert sm.data["seen_images"] == test_data["seen_images"]
+    assert sm.get_setting("auto_download") == True
+    assert sm.get_setting("cutoff_date") == "2023-01-01"
+    assert sm.get_setting("download_dir") == model.DEFAULT_DOWNLOAD_DIR
+    assert sm.get_setting("notifications_enabled") == True
 
 def test_load_data_migrate_old_format(temp_data_file):
     """Test _load_data migrates old data format missing settings."""
@@ -51,6 +57,8 @@ def test_load_data_migrate_old_format(temp_data_file):
     sm = model.StateManager()
     assert "settings" in sm.data
     assert "auto_download" in sm.data["settings"]
+    assert sm.get_setting("download_dir") == model.DEFAULT_DOWNLOAD_DIR
+    assert sm.get_setting("notifications_enabled") == True
 
 def test_get_set_setting(state_manager):
     """Test getting and setting global settings."""
@@ -64,6 +72,22 @@ def test_get_set_setting(state_manager):
     # Test persistence
     sm_new = model.StateManager()
     assert sm_new.get_setting("auto_download") == True
+
+def test_download_dir_setting_persists(state_manager, tmp_path):
+    """Test custom download directory persistence."""
+    download_dir = str(tmp_path / "getty-downloads")
+
+    state_manager.set_setting("download_dir", download_dir)
+
+    sm_new = model.StateManager()
+    assert sm_new.get_setting("download_dir") == download_dir
+
+def test_notifications_setting_persists(state_manager):
+    """Test system notification setting persistence."""
+    state_manager.set_setting("notifications_enabled", False)
+
+    sm_new = model.StateManager()
+    assert sm_new.get_setting("notifications_enabled") == False
 
 def test_keyword_management(state_manager):
     """Test adding, getting, and removing keywords."""
@@ -122,6 +146,26 @@ def test_update_seen_images_max_history(state_manager):
         assert len(seen) == 5
         # The last 5 images should be kept
         assert seen == ["img2", "img3", "img4", "img5", "img6"]
+
+def test_get_download_path_uses_configured_download_dir(temp_data_file, tmp_path):
+    """Test download paths use the configured base folder and create keyword subfolders."""
+    app = main.App.__new__(main.App)
+    app.state_manager = model.StateManager()
+    configured_dir = str(tmp_path / "custom-downloads")
+    app.state_manager.set_setting("download_dir", configured_dir)
+
+    filename, download_dir = app._get_download_path(
+        "cats & dogs",
+        {
+            "id": "12345",
+            "title": "A test image!",
+            "date": "2026-05-17T10:15:00Z",
+        },
+    )
+
+    assert download_dir == os.path.join(configured_dir, "cats  dogs")
+    assert os.path.isdir(download_dir)
+    assert filename == "2026.05.17 A test image 12345.jpg"
 
 def test_thread_safety(state_manager):
     """Test that state manager can handle concurrent modifications."""
