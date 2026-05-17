@@ -114,7 +114,7 @@ class ToastNotifier(object):
         sleep(duration)
         DestroyWindow(self.hwnd)
         UnregisterClass(self.wc.lpszClassName, None)
-        return None
+        return 0
 
     def show_toast(self, title="Notification", msg="Here comes the message",
                     icon_path=None, duration=5, threaded=False):

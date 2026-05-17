@@ -4,6 +4,7 @@ import threading
 
 DATA_FILE = "data.json"
 MAX_HISTORY = 10000 # Keep history to allow backfilling/skipping known images
+DEFAULT_DOWNLOAD_DIR = "downloads"
 
 
 
@@ -19,7 +20,8 @@ class StateManager:
             "seen_images": {},
             "settings": {
                 "auto_download": False,
-                "cutoff_date": "" # format: YYYY-MM-DD
+                "cutoff_date": "", # format: YYYY-MM-DD
+                "download_dir": DEFAULT_DOWNLOAD_DIR
             }
         }
         if not os.path.exists(DATA_FILE):
@@ -29,7 +31,10 @@ class StateManager:
                 data = json.load(f)
                 # Migrate old data format if needed
                 if "settings" not in data:
-                    data["settings"] = default_data["settings"]
+                    data["settings"] = default_data["settings"].copy()
+                else:
+                    for key, value in default_data["settings"].items():
+                        data["settings"].setdefault(key, value)
                 return data
         except Exception as e:
             print(f"Error loading data: {e}")
