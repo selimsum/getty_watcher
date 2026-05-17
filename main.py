@@ -117,8 +117,8 @@ class KeywordsFrame(ctk.CTkFrame):
         self.refresh_keywords()
 
     def refresh_keywords(self):
-        for widget in self.keyword_widgets.values():
-            widget.destroy()
+        for row in self.keyword_widgets.values():
+            row["frame"].destroy()
         self.keyword_widgets.clear()
         if self.empty_label is not None:
             self.empty_label.destroy()
@@ -135,31 +135,57 @@ class KeywordsFrame(ctk.CTkFrame):
             return
 
         for kw in keywords:
-            frame = ctk.CTkFrame(self.keyword_scroll)
-            frame.pack(fill="x", pady=2)
-            frame.grid_columnconfigure(0, weight=1)
-            
-            ctk.CTkLabel(frame, text=kw, anchor="w", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="ew", padx=10, pady=5)
-            
-            settings = self.state_manager.get_keyword_settings(kw)
-            last_checked = settings.get("last_checked", "Never")
-            ctk.CTkLabel(frame, text=last_checked, width=120, anchor="w", text_color="gray").grid(row=0, column=1, padx=5)
+            self._create_keyword_row(kw)
 
-            last_new_count = settings.get("last_new_count", 0)
-            ctk.CTkLabel(frame, text=str(last_new_count), width=60, anchor="w", text_color="gray").grid(row=0, column=2, padx=5)
-            
-            cutoff = settings.get("cutoff_date", "")
-            date_ent = ctk.CTkEntry(frame, width=100, placeholder_text="DD.MM.YYYY")
-            date_ent.insert(0, cutoff)
-            date_ent.grid(row=0, column=3, padx=5)
-            
-            date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
-            date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
+    def _create_keyword_row(self, kw):
+        frame = ctk.CTkFrame(self.keyword_scroll)
+        frame.pack(fill="x", pady=2)
+        frame.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(frame, text=kw, anchor="w", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+        
+        settings = self.state_manager.get_keyword_settings(kw)
+        last_checked = settings.get("last_checked", "Never")
+        last_checked_label = ctk.CTkLabel(frame, text=last_checked, width=120, anchor="w", text_color="gray")
+        last_checked_label.grid(row=0, column=1, padx=5)
 
-            ctk.CTkButton(frame, text="Check", width=80, command=lambda k=kw: self.check_callback(k)).grid(row=0, column=4, padx=5)
-            ctk.CTkButton(frame, text="Delete", width=60, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k)).grid(row=0, column=5, padx=5)
+        last_new_count = settings.get("last_new_count", 0)
+        new_count_label = ctk.CTkLabel(frame, text=str(last_new_count), width=60, anchor="w", text_color="gray")
+        new_count_label.grid(row=0, column=2, padx=5)
+        
+        cutoff = settings.get("cutoff_date", "")
+        date_ent = ctk.CTkEntry(frame, width=100, placeholder_text="DD.MM.YYYY")
+        date_ent.insert(0, cutoff)
+        date_ent.grid(row=0, column=3, padx=5)
+        
+        date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
+        date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
 
-            self.keyword_widgets[kw] = frame
+        ctk.CTkButton(frame, text="Check", width=80, command=lambda k=kw: self.check_callback(k)).grid(row=0, column=4, padx=5)
+        ctk.CTkButton(frame, text="Delete", width=60, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k)).grid(row=0, column=5, padx=5)
+
+        self.keyword_widgets[kw] = {
+            "frame": frame,
+            "last_checked": last_checked_label,
+            "last_new_count": new_count_label,
+            "cutoff_date": date_ent,
+        }
+
+    def update_keyword_row(self, keyword):
+        row = self.keyword_widgets.get(keyword)
+        if row is None:
+            self.refresh_keywords()
+            return
+
+        settings = self.state_manager.get_keyword_settings(keyword)
+        row["last_checked"].configure(text=settings.get("last_checked", "Never"))
+        row["last_new_count"].configure(text=str(settings.get("last_new_count", 0)))
+
+        cutoff = settings.get("cutoff_date", "")
+        cutoff_entry = row["cutoff_date"]
+        if cutoff_entry.focus_get() != cutoff_entry and cutoff_entry.get() != cutoff:
+            cutoff_entry.delete(0, "end")
+            cutoff_entry.insert(0, cutoff)
 
     def save_date(self, keyword, entry_widget):
         val = entry_widget.get().strip()
@@ -363,23 +389,17 @@ class App(ctk.CTk):
             
             # Update settings
             newest_id = new_images[0]['id']
-            updated = False
             if max_date_found:
                 new_cutoff = max_date_found.strftime("%d.%m.%Y")
                 if new_cutoff != cutoff_date_str:
                     self.state_manager.set_keyword_setting(kw, "cutoff_date", new_cutoff)
-                    updated = True
             if newest_id != last_id:
                 self.state_manager.set_keyword_setting(kw, "last_id", newest_id)
-                updated = True
-            
-            if updated:
-                self.after(0, self.keywords_view.refresh_keywords)
 
         # Update Last Checked
         self.state_manager.set_keyword_setting(kw, "last_checked", datetime.datetime.now().strftime("%d.%m %H:%M"))
         self.state_manager.set_keyword_setting(kw, "last_new_count", len(new_images))
-        self.after(0, self.keywords_view.refresh_keywords)
+        self.after(0, lambda keyword=kw: self.keywords_view.update_keyword_row(keyword))
         
         if new_images:
             self._batch_download(kw, new_images)
