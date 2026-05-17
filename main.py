@@ -1,6 +1,5 @@
 import customtkinter as ctk
 import threading
-import tkinter as tk
 import sys
 import os
 import webbrowser
@@ -277,7 +276,7 @@ class App(ctk.CTk):
         found_images = self.scraper.check_keyword(kw, cutoff_date, should_stop=lambda: self.stop_requested)
         
         new_images = []
-        seen_for_kw = self.state_manager.get_seen_images(kw)
+        seen_for_kw = set(self.state_manager.get_seen_images(kw))
         max_date_found = cutoff_date 
 
         for img in found_images:
