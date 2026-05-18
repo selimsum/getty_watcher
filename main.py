@@ -642,11 +642,11 @@ class App(ctk.CTk):
             "Referer": "https://www.gettyimages.com/"
         }
         try:
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 429:
                 self.log("Rate limit hit! Pausing for 60s...")
                 time.sleep(60)
-                resp = requests.get(url, headers=headers)
+                resp = requests.get(url, headers=headers, timeout=15)
             
             if resp.status_code == 200:
                 with open(filepath, "wb") as f:
