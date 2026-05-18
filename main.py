@@ -402,12 +402,13 @@ class App(ctk.CTk):
         self.after(0, lambda keyword=kw: self.keywords_view.update_keyword_row(keyword))
         
         if new_images:
-            self._batch_download(kw, new_images)
-            self.notify_new_images(kw, len(new_images))
+            downloaded_count = self._batch_download(kw, new_images)
+            if downloaded_count:
+                self.notify_download_complete(kw, downloaded_count)
         
         return len(new_images)
 
-    def notify_new_images(self, keyword, count):
+    def notify_download_complete(self, keyword, count):
         if self.toaster is None:
             return
         if self.state_manager.get_setting("notifications_enabled") is False:
@@ -416,7 +417,7 @@ class App(ctk.CTk):
 
         title = "Getty Images Watcher"
         plural = "image" if count == 1 else "images"
-        message = f"{count} new {plural} found for {keyword}"
+        message = f"{count} {plural} downloaded for {keyword}"
         icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
         if not os.path.exists(icon_path):
             self.log("Windows notification icon not found; showing notification without an icon.")
@@ -441,15 +442,20 @@ class App(ctk.CTk):
             [img['url'] for img in images],
             should_stop=lambda: self.stop_requested,
         )
+        downloaded_count = 0
         
         for i, img in enumerate(images):
             if self.stop_requested:
                 break
             full_url = url_map.get(img['url'])
             if full_url:
-                self.process_download_with_url(kw, img, full_url, i+1, len(images))
+                if self.process_download_with_url(kw, img, full_url, i+1, len(images)):
+                    downloaded_count += 1
             else:
                 self.log(f"Failed to resolve URL for {img['id']}")
+
+        self.log(f"Download complete for {kw}. {downloaded_count} files saved.")
+        return downloaded_count
 
     def _parse_date(self, date_str):
         if not date_str: return None
@@ -603,11 +609,14 @@ class App(ctk.CTk):
         
         if os.path.exists(filepath):
             self.log(f"File already exists: {filename}. Skipping.")
-            return
+            return False
 
         if self._download_file(full_url, filepath):
             msg = f"Saved [{index}/{total}]: {filename}" if index else f"Saved: {filename}"
             self.log(msg)
+            return True
+
+        return False
 
     def _get_download_path(self, keyword, img_data):
         safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
