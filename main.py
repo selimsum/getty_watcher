@@ -23,6 +23,7 @@ from scraper import GettyScraper
 APP_NAME = "Getty Images Watcher"
 APP_VERSION = "2.1"
 APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images."
+SIDE_PANE_WIDTH = 340
 
 # Fix for Playwright in PyInstaller: Force use of local browsers
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ms-playwright")
@@ -56,6 +57,15 @@ class RedirectText:
             self.original_stdout.flush()
 
 class KeywordsFrame(ctk.CTkFrame):
+    TABLE_COLUMNS = {
+        0: {"weight": 1, "minsize": 260},
+        1: {"weight": 0, "minsize": 140},
+        2: {"weight": 0, "minsize": 70},
+        3: {"weight": 0, "minsize": 190},
+        4: {"weight": 0, "minsize": 150},
+        5: {"weight": 0, "minsize": 120},
+    }
+
     def __init__(self, parent, state_manager, check_callback, stop_callback):
         super().__init__(parent)
         self.state_manager = state_manager
@@ -67,16 +77,15 @@ class KeywordsFrame(ctk.CTkFrame):
 
         # 1. Header
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, padx=20, pady=(10, 5), sticky="ew")
-        self.header_frame.grid_columnconfigure(0, weight=1)
+        self.header_frame.grid(row=0, column=0, padx=(20, 36), pady=(10, 5), sticky="ew")
+        self._configure_table_columns(self.header_frame)
         
         fonts = ("Arial", 12, "bold")
-        ctk.CTkLabel(self.header_frame, text="Keyword", font=fonts, anchor="w").grid(row=0, column=0, sticky="ew", padx=5)
-        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, width=120, anchor="w").grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(self.header_frame, text="New", font=fonts, width=60, anchor="w").grid(row=0, column=2, padx=5)
-        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, width=100, anchor="w").grid(row=0, column=3, padx=5)
-        ctk.CTkLabel(self.header_frame, text="Action", font=fonts, width=80, anchor="center").grid(row=0, column=4, padx=5)
-        ctk.CTkLabel(self.header_frame, text="", width=60).grid(row=0, column=5, padx=5)
+        ctk.CTkLabel(self.header_frame, text="Keyword", font=fonts, anchor="w").grid(row=0, column=0, sticky="ew", padx=(10, 5))
+        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=5)
+        ctk.CTkLabel(self.header_frame, text="New", font=fonts, anchor="w").grid(row=0, column=2, sticky="ew", padx=5)
+        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="ew", padx=5)
+        ctk.CTkLabel(self.header_frame, text="Action", font=fonts, anchor="center").grid(row=0, column=4, columnspan=2, sticky="ew", padx=5)
 
         # 2. Scrollable List
         self.keyword_scroll = ctk.CTkScrollableFrame(self, label_text="")
@@ -104,6 +113,10 @@ class KeywordsFrame(ctk.CTkFrame):
         self.keyword_widgets = {}
         self.empty_label = None
         self.refresh_keywords()
+
+    def _configure_table_columns(self, frame):
+        for column, options in self.TABLE_COLUMNS.items():
+            frame.grid_columnconfigure(column, **options)
 
     def add_keyword(self, event=None):
         keyword = self.new_keyword_entry.get().strip()
@@ -140,29 +153,29 @@ class KeywordsFrame(ctk.CTkFrame):
     def _create_keyword_row(self, kw):
         frame = ctk.CTkFrame(self.keyword_scroll)
         frame.pack(fill="x", pady=2)
-        frame.grid_columnconfigure(0, weight=1)
+        self._configure_table_columns(frame)
         
-        ctk.CTkLabel(frame, text=kw, anchor="w", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+        ctk.CTkLabel(frame, text=kw, anchor="w", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="ew", padx=(10, 5), pady=6)
         
         settings = self.state_manager.get_keyword_settings(kw)
         last_checked = settings.get("last_checked", "Never")
-        last_checked_label = ctk.CTkLabel(frame, text=last_checked, width=120, anchor="w", text_color="gray")
-        last_checked_label.grid(row=0, column=1, padx=5)
+        last_checked_label = ctk.CTkLabel(frame, text=last_checked, anchor="w", text_color="gray")
+        last_checked_label.grid(row=0, column=1, sticky="ew", padx=5)
 
         last_new_count = settings.get("last_new_count", 0)
-        new_count_label = ctk.CTkLabel(frame, text=str(last_new_count), width=60, anchor="w", text_color="gray")
-        new_count_label.grid(row=0, column=2, padx=5)
+        new_count_label = ctk.CTkLabel(frame, text=str(last_new_count), anchor="w", text_color="gray")
+        new_count_label.grid(row=0, column=2, sticky="ew", padx=5)
         
         cutoff = settings.get("cutoff_date", "")
-        date_ent = ctk.CTkEntry(frame, width=100, placeholder_text="DD.MM.YYYY")
+        date_ent = ctk.CTkEntry(frame, width=160, placeholder_text="DD.MM.YYYY")
         date_ent.insert(0, cutoff)
-        date_ent.grid(row=0, column=3, padx=5)
+        date_ent.grid(row=0, column=3, sticky="w", padx=5)
         
         date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
 
-        ctk.CTkButton(frame, text="Check", width=80, command=lambda k=kw: self.check_callback(k)).grid(row=0, column=4, padx=5)
-        ctk.CTkButton(frame, text="Delete", width=60, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k)).grid(row=0, column=5, padx=5)
+        ctk.CTkButton(frame, text="Check", width=130, command=lambda k=kw: self.check_callback(k)).grid(row=0, column=4, sticky="w", padx=5)
+        ctk.CTkButton(frame, text="Delete", width=100, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k)).grid(row=0, column=5, sticky="w", padx=(5, 10))
 
         self.keyword_widgets[kw] = {
             "frame": frame,
@@ -262,13 +275,14 @@ class App(ctk.CTk):
         self.main_container = ctk.CTkFrame(self, corner_radius=0)
         self.main_container.grid(row=1, column=0, sticky="nsew")
         self.main_container.grid_rowconfigure(0, weight=1)
-        self.main_container.grid_columnconfigure(0, weight=3)
-        self.main_container.grid_columnconfigure(1, weight=1)
+        self.main_container.grid_columnconfigure(0, weight=1)
+        self.main_container.grid_columnconfigure(1, weight=0, minsize=SIDE_PANE_WIDTH)
 
         self.keywords_view = KeywordsFrame(self.main_container, self.state_manager, self.check_single_keyword, self.stop_check)
         self.keywords_view.grid(row=0, column=0, sticky="nsew")
 
-        self.side_pane = ctk.CTkFrame(self.main_container, width=320, corner_radius=0)
+        self.side_pane = ctk.CTkFrame(self.main_container, width=SIDE_PANE_WIDTH, corner_radius=0)
+        self.side_pane.grid_propagate(False)
         self.side_pane.grid(row=0, column=1, sticky="nsew")
         self.side_pane.grid_columnconfigure(0, weight=1)
         self.side_pane.grid_rowconfigure(0, weight=1)
@@ -277,7 +291,7 @@ class App(ctk.CTk):
         self.log_view.grid_columnconfigure(0, weight=1)
         self.log_view.grid_rowconfigure(1, weight=1)
         ctk.CTkLabel(self.log_view, text="Application Logs", anchor="w", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 2))
-        self.log_textbox = ctk.CTkTextbox(self.log_view, font=("Consolas", 10), width=300)
+        self.log_textbox = ctk.CTkTextbox(self.log_view, font=("Consolas", 10), width=SIDE_PANE_WIDTH - 20)
         self.log_textbox.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
 
         self.settings_view = self._build_settings_view(self.side_pane)
@@ -493,7 +507,7 @@ class App(ctk.CTk):
             variable=self.settings_notifications_var,
         ).grid(row=4, column=0, padx=16, pady=(4, 12), sticky="w")
 
-        ctk.CTkLabel(frame, textvariable=self.settings_feedback_text, anchor="w", text_color="gray", wraplength=280).grid(row=5, column=0, padx=16, pady=(0, 12), sticky="ew")
+        ctk.CTkLabel(frame, textvariable=self.settings_feedback_text, anchor="w", text_color="gray", wraplength=SIDE_PANE_WIDTH - 40).grid(row=5, column=0, padx=16, pady=(0, 12), sticky="ew")
 
         action_buttons = ctk.CTkFrame(frame, fg_color="transparent")
         action_buttons.grid(row=6, column=0, padx=16, pady=(4, 18), sticky="ew")
@@ -510,7 +524,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(frame, text="About", font=("Arial", 18, "bold")).grid(row=0, column=0, padx=16, pady=(18, 12), sticky="w")
         ctk.CTkLabel(frame, text=APP_NAME, font=("Arial", 16, "bold")).grid(row=1, column=0, padx=16, pady=(4, 2), sticky="w")
         ctk.CTkLabel(frame, text=f"Version {APP_VERSION}", text_color="gray").grid(row=2, column=0, padx=16, pady=(0, 12), sticky="w")
-        ctk.CTkLabel(frame, text=APP_DESCRIPTION, wraplength=280, justify="left").grid(row=3, column=0, padx=16, pady=4, sticky="w")
+        ctk.CTkLabel(frame, text=APP_DESCRIPTION, wraplength=SIDE_PANE_WIDTH - 40, justify="left").grid(row=3, column=0, padx=16, pady=4, sticky="w")
         ctk.CTkLabel(frame, text="License: MIT", text_color="gray").grid(row=4, column=0, padx=16, pady=(14, 4), sticky="w")
         ctk.CTkLabel(frame, text=f"Python {sys.version.split()[0]}", text_color="gray").grid(row=5, column=0, padx=16, pady=4, sticky="w")
 
@@ -528,7 +542,7 @@ class App(ctk.CTk):
         views[view_name].grid(row=0, column=0, sticky="nsew")
         self.active_side_view = view_name
         self.side_pane.grid()
-        self.main_container.grid_columnconfigure(1, weight=1)
+        self.main_container.grid_columnconfigure(1, weight=0, minsize=SIDE_PANE_WIDTH)
         self.side_pane_visible = True
         self.logs_visible = view_name == "logs"
         self.toolbar_logs_btn.configure(text="Hide Logs" if view_name == "logs" else "Show Logs")
@@ -562,14 +576,14 @@ class App(ctk.CTk):
     def toggle_logs(self):
         if self.side_pane_visible and self.active_side_view == "logs":
             self.side_pane.grid_remove()
-            self.main_container.grid_columnconfigure(1, weight=0)
+            self.main_container.grid_columnconfigure(1, weight=0, minsize=0)
             self.toolbar_logs_btn.configure(text="Show Logs")
             self.side_pane_visible = False
             self.logs_visible = False
         else:
             self._show_side_view("logs")
             self.side_pane.grid()
-            self.main_container.grid_columnconfigure(1, weight=1)
+            self.main_container.grid_columnconfigure(1, weight=0, minsize=SIDE_PANE_WIDTH)
             self.toolbar_logs_btn.configure(text="Hide Logs")
             self.side_pane_visible = True
             self.logs_visible = True
