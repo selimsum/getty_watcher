@@ -106,7 +106,7 @@ class GettyScraper:
                                         keep_scraping = False
                                         print(f"[Scraper] Reached cutoff date ({img_date} < {cutoff_date}).")
                                         break 
-                                except:
+                                except Exception:
                                     pass
 
                             img_el = item.query_selector('img')

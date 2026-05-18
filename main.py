@@ -2,13 +2,13 @@ import customtkinter as ctk
 import threading
 import sys
 import os
-import webbrowser
 import time
 import datetime
 import requests
 import re
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
+import tkinter.messagebox
 from PIL import Image, ImageTk
 try:
     from win10toast import ToastNotifier
@@ -458,12 +458,18 @@ class App(ctk.CTk):
         )
         downloaded_count = 0
         
+        # Calculate download directory once per keyword batch
+        safe_kw = re.sub(r'[^\w\s]', '', kw).strip()
+        base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
+        download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
+        os.makedirs(download_dir, exist_ok=True)
+
         for i, img in enumerate(images):
             if self.stop_requested:
                 break
             full_url = url_map.get(img['url'])
             if full_url:
-                if self.process_download_with_url(kw, img, full_url, i+1, len(images)):
+                if self.process_download_with_url(kw, img, full_url, i+1, len(images), download_dir=download_dir):
                     downloaded_count += 1
             else:
                 self.log(f"Failed to resolve URL for {img['id']}")
@@ -598,12 +604,13 @@ class App(ctk.CTk):
         self._show_side_view("about")
 
     def open_download_folder(self, path=None):
+        import webbrowser
         target = self._absolute_download_dir(path or self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
         try:
             os.makedirs(target, exist_ok=True)
             webbrowser.open(target)
         except Exception as e:
-            messagebox.showerror(APP_NAME, f"Could not open folder:\n{e}")
+            tkinter.messagebox.showerror(APP_NAME, f"Could not open folder:\n{e}")
 
     def _absolute_download_dir(self, path):
         path = path.strip() if path else DEFAULT_DOWNLOAD_DIR
@@ -617,9 +624,9 @@ class App(ctk.CTk):
     def _refresh_save_location(self):
         self.save_location_text.set(f"Save folder: {self._display_download_dir()}")
 
-    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None):
-        filename, download_dir = self._get_download_path(keyword, img_data)
-        filepath = os.path.join(download_dir, filename)
+    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None, download_dir=None):
+        filename, computed_download_dir = self._get_download_path(keyword, img_data, download_dir=download_dir)
+        filepath = os.path.join(computed_download_dir, filename)
         
         if os.path.exists(filepath):
             self.log(f"File already exists: {filename}. Skipping.")
@@ -632,11 +639,12 @@ class App(ctk.CTk):
 
         return False
 
-    def _get_download_path(self, keyword, img_data):
-        safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
-        base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
-        download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
-        os.makedirs(download_dir, exist_ok=True)
+    def _get_download_path(self, keyword, img_data, download_dir=None):
+        if download_dir is None:
+            safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
+            base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
+            download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
+            os.makedirs(download_dir, exist_ok=True)
         
         date_str = img_data.get('date', '')
         formatted_date = "0000.00.00"
@@ -665,11 +673,11 @@ class App(ctk.CTk):
             "Referer": "https://www.gettyimages.com/"
         }
         try:
-            resp = requests.get(url, headers=headers)
+            resp = requests.get(url, headers=headers, timeout=15)
             if resp.status_code == 429:
                 self.log("Rate limit hit! Pausing for 60s...")
                 time.sleep(60)
-                resp = requests.get(url, headers=headers)
+                resp = requests.get(url, headers=headers, timeout=15)
             
             if resp.status_code == 200:
                 with open(filepath, "wb") as f:
@@ -679,14 +687,6 @@ class App(ctk.CTk):
         except Exception as e:
             self.log(f"Download Error: {e}")
         return False
-
-    def apply_window_icon(self, ico_path, pil_img):
-        try:
-             self.iconbitmap(ico_path)
-             icon_img = ImageTk.PhotoImage(pil_img)
-             self.iconphoto(False, icon_img)
-        except Exception as e:
-             print(f"Error applying icon: {e}")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("System")

@@ -107,9 +107,11 @@ class StateManager:
         seen = self.data.setdefault("seen_images", {}).setdefault(keyword, [])
         changed = False
         
+        seen_set = set(seen)
         for img_id in new_ids:
-            if img_id not in seen:
+            if img_id not in seen_set:
                 seen.append(img_id)
+                seen_set.add(img_id)
                 changed = True
         
         if changed:
