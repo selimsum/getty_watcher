@@ -3,6 +3,9 @@ import datetime
 from unittest.mock import MagicMock
 from main import App
 
+import builtins
+from unittest.mock import patch
+
 @pytest.fixture
 def app_instance():
     # Create a mock App to avoid UI initialization issues during testing
@@ -10,6 +13,8 @@ def app_instance():
     # Bind the actual methods to our mocked instance
     app._parse_date = App._parse_date.__get__(app, App)
     app._parse_iso_date = App._parse_iso_date.__get__(app, App)
+    app._download_file = App._download_file.__get__(app, App)
+    app.log = MagicMock()
     return app
 
 
@@ -66,3 +71,50 @@ def test_parse_iso_date_empty(app_instance):
     # Test empty or None inputs
     assert app_instance._parse_iso_date("") is None
     assert app_instance._parse_iso_date(None) is None
+
+@patch("main.requests.get")
+@patch("builtins.open", new_callable=MagicMock)
+def test_download_file_timeout(mock_open, mock_get, app_instance):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.content = b"image data"
+    mock_get.return_value = mock_resp
+
+    url = "https://example.com/image.jpg"
+    filepath = "test.jpg"
+
+    result = app_instance._download_file(url, filepath)
+
+    assert result is True
+    # Ensure get was called with a timeout
+    mock_get.assert_called_once()
+    _, kwargs = mock_get.call_args
+    assert "timeout" in kwargs
+    assert kwargs["timeout"] == 15
+
+@patch("main.requests.get")
+@patch("main.time.sleep")
+@patch("builtins.open", new_callable=MagicMock)
+def test_download_file_retry_timeout(mock_open, mock_sleep, mock_get, app_instance):
+    # First call returns 429, second returns 200
+    resp_429 = MagicMock()
+    resp_429.status_code = 429
+
+    resp_200 = MagicMock()
+    resp_200.status_code = 200
+    resp_200.content = b"image data"
+
+    mock_get.side_effect = [resp_429, resp_200]
+
+    url = "https://example.com/image.jpg"
+    filepath = "test.jpg"
+
+    result = app_instance._download_file(url, filepath)
+
+    assert result is True
+    # Ensure get was called twice, both times with a timeout
+    assert mock_get.call_count == 2
+    for call in mock_get.call_args_list:
+        _, kwargs = call
+        assert "timeout" in kwargs
+        assert kwargs["timeout"] == 15
