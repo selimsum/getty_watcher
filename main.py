@@ -657,14 +657,6 @@ class App(ctk.CTk):
             self.log(f"Download Error: {e}")
         return False
 
-    def apply_window_icon(self, ico_path, pil_img):
-        try:
-             self.iconbitmap(ico_path)
-             icon_img = ImageTk.PhotoImage(pil_img)
-             self.iconphoto(False, icon_img)
-        except Exception as e:
-             print(f"Error applying icon: {e}")
-
 if __name__ == "__main__":
     ctk.set_appearance_mode("System")
     ctk.set_default_color_theme("blue")
