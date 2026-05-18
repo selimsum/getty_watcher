@@ -442,12 +442,18 @@ class App(ctk.CTk):
             should_stop=lambda: self.stop_requested,
         )
         
+        # Calculate download directory once per keyword batch
+        safe_kw = re.sub(r'[^\w\s]', '', kw).strip()
+        base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
+        download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
+        os.makedirs(download_dir, exist_ok=True)
+
         for i, img in enumerate(images):
             if self.stop_requested:
                 break
             full_url = url_map.get(img['url'])
             if full_url:
-                self.process_download_with_url(kw, img, full_url, i+1, len(images))
+                self.process_download_with_url(kw, img, full_url, i+1, len(images), download_dir=download_dir)
             else:
                 self.log(f"Failed to resolve URL for {img['id']}")
 
@@ -598,9 +604,9 @@ class App(ctk.CTk):
     def _refresh_save_location(self):
         self.save_location_text.set(f"Save folder: {self._display_download_dir()}")
 
-    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None):
-        filename, download_dir = self._get_download_path(keyword, img_data)
-        filepath = os.path.join(download_dir, filename)
+    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None, download_dir=None):
+        filename, computed_download_dir = self._get_download_path(keyword, img_data, download_dir=download_dir)
+        filepath = os.path.join(computed_download_dir, filename)
         
         if os.path.exists(filepath):
             self.log(f"File already exists: {filename}. Skipping.")
@@ -610,11 +616,12 @@ class App(ctk.CTk):
             msg = f"Saved [{index}/{total}]: {filename}" if index else f"Saved: {filename}"
             self.log(msg)
 
-    def _get_download_path(self, keyword, img_data):
-        safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
-        base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
-        download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
-        os.makedirs(download_dir, exist_ok=True)
+    def _get_download_path(self, keyword, img_data, download_dir=None):
+        if download_dir is None:
+            safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
+            base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
+            download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
+            os.makedirs(download_dir, exist_ok=True)
         
         date_str = img_data.get('date', '')
         formatted_date = "0000.00.00"
