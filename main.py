@@ -7,7 +7,8 @@ import datetime
 import requests
 import re
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
+import tkinter.messagebox
 from PIL import Image, ImageTk
 try:
     from win10toast import ToastNotifier
@@ -583,7 +584,7 @@ class App(ctk.CTk):
             os.makedirs(target, exist_ok=True)
             webbrowser.open(target)
         except Exception as e:
-            messagebox.showerror(APP_NAME, f"Could not open folder:\n{e}")
+            tkinter.messagebox.showerror(APP_NAME, f"Could not open folder:\n{e}")
 
     def _absolute_download_dir(self, path):
         path = path.strip() if path else DEFAULT_DOWNLOAD_DIR
