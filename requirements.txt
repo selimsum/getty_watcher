@@ -1,8 +1,8 @@
-playwright
-playwright-stealth
-customtkinter
-win10toast
-pywin32
-requests
-beautifulsoup4
-Pillow
+playwright==1.59.0
+playwright-stealth==2.0.3
+customtkinter==5.2.2
+win10toast==0.9; sys_platform == 'win32'
+pywin32==311; sys_platform == 'win32'
+requests==2.34.2
+beautifulsoup4==4.14.3
+Pillow==12.2.0
