@@ -2,7 +2,6 @@ import customtkinter as ctk
 import threading
 import sys
 import os
-import webbrowser
 import time
 import datetime
 import requests
@@ -578,6 +577,7 @@ class App(ctk.CTk):
         self._show_side_view("about")
 
     def open_download_folder(self, path=None):
+        import webbrowser
         target = self._absolute_download_dir(path or self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
         try:
             os.makedirs(target, exist_ok=True)
