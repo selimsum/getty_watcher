@@ -155,4 +155,4 @@ class ToastNotifier(object):
         Shell_NotifyIcon(NIM_DELETE, nid)
         PostQuitMessage(0)
 
-        return None
+        return 0

@@ -43,9 +43,10 @@ class RedirectText:
         self.original_stderr = sys.stderr
 
     def write(self, string):
+        if not string:
+            return
         try:
-            self.output.insert("end", string)
-            self.output.see("end")
+            self.output.after(0, self._append, string)
         except Exception:
             pass
              
@@ -55,6 +56,13 @@ class RedirectText:
     def flush(self):
         if self.original_stdout:
             self.original_stdout.flush()
+
+    def _append(self, string):
+        try:
+            self.output.insert("end", string)
+            self.output.see("end")
+        except Exception:
+            pass
 
 class KeywordsFrame(ctk.CTkFrame):
     TABLE_COLUMNS = {
@@ -365,12 +373,16 @@ class App(ctk.CTk):
         
         self.is_checking = False
         self.stop_requested = False
+        finished_at = datetime.datetime.now().strftime("%d.%m %H:%M")
+        self.after(0, lambda count=total_new, timestamp=finished_at: self._finish_check_ui(count, timestamp))
+        self.log(f"Check complete. {total_new} new images found.")
+
+    def _finish_check_ui(self, total_new, finished_at):
         self.keywords_view.check_all_button.configure(state="normal")
         self.keywords_view.stop_button.configure(state="disabled")
         self.status_text.set("Status: Idle")
-        self.last_check_text.set(f"Last check: {datetime.datetime.now().strftime('%d.%m %H:%M')}")
+        self.last_check_text.set(f"Last check: {finished_at}")
         self.new_images_text.set(f"New images: {total_new}")
-        self.log(f"Check complete. {total_new} new images found.")
 
     def _process_keyword(self, kw):
         self.log(f"Scraping: {kw}...")
@@ -429,6 +441,9 @@ class App(ctk.CTk):
             self.log("Windows notification skipped because notifications are disabled.")
             return
 
+        self.after(0, lambda: self._show_download_toast(keyword, count))
+
+    def _show_download_toast(self, keyword, count):
         title = "Getty Images Watcher"
         plural = "image" if count == 1 else "images"
         message = f"{count} {plural} downloaded for {keyword}"
