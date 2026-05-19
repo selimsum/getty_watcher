@@ -152,15 +152,15 @@ class KeywordsFrame(ctk.CTkFrame):
                 text="No keywords yet. Add one below to start watching Getty Images.",
                 text_color="gray",
             )
-            self.empty_label.pack(fill="x", pady=30)
+            self.empty_label.grid(row=0, column=0, sticky="ew", pady=30)
             return
 
-        for kw in keywords:
-            self._create_keyword_row(kw)
+        for row_index, kw in enumerate(keywords):
+            self._create_keyword_row(kw, row_index)
 
-    def _create_keyword_row(self, kw):
+    def _create_keyword_row(self, kw, row_index):
         frame = ctk.CTkFrame(self.keyword_scroll)
-        frame.pack(fill="x", pady=2)
+        frame.grid(row=row_index, column=0, sticky="ew", pady=2)
         self._configure_table_columns(frame)
         
         ctk.CTkLabel(frame, text=kw, anchor="w", font=("Arial", 13, "bold")).grid(row=0, column=0, sticky="ew", padx=(10, 5), pady=6)
