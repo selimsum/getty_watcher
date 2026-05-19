@@ -66,10 +66,10 @@ class RedirectText:
 
 class KeywordsFrame(ctk.CTkFrame):
     TABLE_COLUMNS = {
-        0: {"weight": 1, "minsize": 320},
-        1: {"weight": 0, "minsize": 130},
-        2: {"weight": 0, "minsize": 60},
-        3: {"weight": 0, "minsize": 180},
+        0: {"weight": 1, "minsize": 330},
+        1: {"weight": 0, "minsize": 105},
+        2: {"weight": 0, "minsize": 46},
+        3: {"weight": 0, "minsize": 170},
         4: {"weight": 0, "minsize": 145},
         5: {"weight": 0, "minsize": 115},
     }
@@ -90,9 +90,9 @@ class KeywordsFrame(ctk.CTkFrame):
         
         fonts = ("Arial", 12, "bold")
         ctk.CTkLabel(self.header_frame, text="Keyword", font=fonts, anchor="w").grid(row=0, column=0, sticky="ew", padx=(10, 5))
-        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=(10, 8))
-        ctk.CTkLabel(self.header_frame, text="New", font=fonts, anchor="center").grid(row=0, column=2, sticky="ew", padx=8)
-        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="ew", padx=5)
+        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        ctk.CTkLabel(self.header_frame, text="New", font=fonts, anchor="center").grid(row=0, column=2, sticky="ew", padx=0)
+        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="ew", padx=(10, 5))
         ctk.CTkLabel(self.header_frame, text="Action", font=fonts, anchor="center").grid(row=0, column=4, columnspan=2, sticky="ew", padx=5)
 
         # 2. Scrollable List
@@ -168,16 +168,16 @@ class KeywordsFrame(ctk.CTkFrame):
         settings = self.state_manager.get_keyword_settings(kw)
         last_checked = settings.get("last_checked", "Never")
         last_checked_label = ctk.CTkLabel(frame, text=last_checked, anchor="w", text_color="gray")
-        last_checked_label.grid(row=0, column=1, sticky="ew", padx=(10, 8))
+        last_checked_label.grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
         last_new_count = settings.get("last_new_count", 0)
         new_count_label = ctk.CTkLabel(frame, text=str(last_new_count), anchor="center", text_color="gray")
-        new_count_label.grid(row=0, column=2, sticky="ew", padx=8)
+        new_count_label.grid(row=0, column=2, sticky="ew", padx=0)
         
         cutoff = settings.get("cutoff_date", "")
         date_ent = ctk.CTkEntry(frame, width=160, placeholder_text="DD.MM.YYYY")
         date_ent.insert(0, cutoff)
-        date_ent.grid(row=0, column=3, sticky="w", padx=5)
+        date_ent.grid(row=0, column=3, sticky="w", padx=(10, 5))
         
         date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
