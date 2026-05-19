@@ -67,9 +67,9 @@ class RedirectText:
 class KeywordsFrame(ctk.CTkFrame):
     TABLE_COLUMNS = {
         0: {"weight": 0, "minsize": 320},
-        1: {"weight": 0, "minsize": 130},
-        2: {"weight": 0, "minsize": 70},
-        3: {"weight": 0, "minsize": 185},
+        1: {"weight": 0, "minsize": 145},
+        2: {"weight": 0, "minsize": 60},
+        3: {"weight": 0, "minsize": 145},
         4: {"weight": 0, "minsize": 145},
         5: {"weight": 0, "minsize": 115},
     }
@@ -92,7 +92,7 @@ class KeywordsFrame(ctk.CTkFrame):
         ctk.CTkLabel(self.header_frame, text="Keyword", font=fonts, anchor="w").grid(row=0, column=0, sticky="ew", padx=(10, 5))
         ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=(4, 0))
         ctk.CTkLabel(self.header_frame, text="New", font=fonts, anchor="center").grid(row=0, column=2, sticky="ew", padx=0)
-        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="ew", padx=(10, 5))
+        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="w", padx=(4, 5))
         ctk.CTkLabel(self.header_frame, text="Action", font=fonts, anchor="center").grid(row=0, column=4, columnspan=2, sticky="ew", padx=5)
 
         # 2. Scrollable List
@@ -179,9 +179,9 @@ class KeywordsFrame(ctk.CTkFrame):
         widgets.append(new_count_label)
         
         cutoff = settings.get("cutoff_date", "")
-        date_ent = ctk.CTkEntry(self.keyword_scroll, width=160, placeholder_text="DD.MM.YYYY")
+        date_ent = ctk.CTkEntry(self.keyword_scroll, width=125, placeholder_text="DD.MM.YYYY")
         date_ent.insert(0, cutoff)
-        date_ent.grid(row=row_index, column=3, sticky="w", padx=(10, 5), pady=row_pad_y)
+        date_ent.grid(row=row_index, column=3, sticky="w", padx=(4, 5), pady=row_pad_y)
         widgets.append(date_ent)
         
         date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
