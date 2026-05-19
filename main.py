@@ -66,10 +66,10 @@ class RedirectText:
 
 class KeywordsFrame(ctk.CTkFrame):
     TABLE_COLUMNS = {
-        0: {"weight": 1, "minsize": 330},
-        1: {"weight": 0, "minsize": 105},
-        2: {"weight": 0, "minsize": 46},
-        3: {"weight": 0, "minsize": 170},
+        0: {"weight": 0, "minsize": 320},
+        1: {"weight": 0, "minsize": 130},
+        2: {"weight": 0, "minsize": 70},
+        3: {"weight": 0, "minsize": 185},
         4: {"weight": 0, "minsize": 145},
         5: {"weight": 0, "minsize": 115},
     }
