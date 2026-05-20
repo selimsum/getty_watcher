@@ -66,12 +66,12 @@ class RedirectText:
 
 class KeywordsFrame(ctk.CTkFrame):
     TABLE_COLUMNS = {
-        0: {"weight": 0, "minsize": 320},
-        1: {"weight": 0, "minsize": 145},
-        2: {"weight": 0, "minsize": 60},
-        3: {"weight": 0, "minsize": 145},
-        4: {"weight": 0, "minsize": 145},
-        5: {"weight": 0, "minsize": 115},
+        0: {"weight": 1, "minsize": 140, "uniform": "tbl"},
+        1: {"weight": 0, "minsize": 110, "uniform": "tbl"},
+        2: {"weight": 0, "minsize": 45, "uniform": "tbl"},
+        3: {"weight": 0, "minsize": 130, "uniform": "tbl"},
+        4: {"weight": 0, "minsize": 100, "uniform": "tbl"},
+        5: {"weight": 0, "minsize": 90, "uniform": "tbl"},
     }
 
     def __init__(self, parent, state_manager, check_callback, stop_callback):
@@ -85,14 +85,14 @@ class KeywordsFrame(ctk.CTkFrame):
 
         # 1. Header
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.grid(row=0, column=0, padx=(20, 36), pady=(10, 5), sticky="ew")
+        self.header_frame.grid(row=0, column=0, padx=(20, 20), pady=(10, 5), sticky="ew")
         self._configure_table_columns(self.header_frame)
         
         fonts = ("Arial", 12, "bold")
         ctk.CTkLabel(self.header_frame, text="Keyword", font=fonts, anchor="w").grid(row=0, column=0, sticky="ew", padx=(10, 5))
-        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=(4, 0))
+        ctk.CTkLabel(self.header_frame, text="Last Check", font=fonts, anchor="w").grid(row=0, column=1, sticky="ew", padx=(5, 0))
         ctk.CTkLabel(self.header_frame, text="New", font=fonts, anchor="center").grid(row=0, column=2, sticky="ew", padx=0)
-        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="w", padx=(4, 5))
+        ctk.CTkLabel(self.header_frame, text="From Date", font=fonts, anchor="w").grid(row=0, column=3, sticky="w", padx=(5, 5))
         ctk.CTkLabel(self.header_frame, text="Action", font=fonts, anchor="center").grid(row=0, column=4, columnspan=2, sticky="ew", padx=5)
 
         # 2. Scrollable List
@@ -170,7 +170,7 @@ class KeywordsFrame(ctk.CTkFrame):
         settings = self.state_manager.get_keyword_settings(kw)
         last_checked = settings.get("last_checked", "Never")
         last_checked_label = ctk.CTkLabel(self.keyword_scroll, text=last_checked, anchor="w", text_color="gray")
-        last_checked_label.grid(row=row_index, column=1, sticky="ew", padx=(4, 0), pady=row_pad_y)
+        last_checked_label.grid(row=row_index, column=1, sticky="ew", padx=(5, 0), pady=row_pad_y)
         widgets.append(last_checked_label)
 
         last_new_count = settings.get("last_new_count", 0)
@@ -179,20 +179,20 @@ class KeywordsFrame(ctk.CTkFrame):
         widgets.append(new_count_label)
         
         cutoff = settings.get("cutoff_date", "")
-        date_ent = ctk.CTkEntry(self.keyword_scroll, width=125, placeholder_text="DD.MM.YYYY")
+        date_ent = ctk.CTkEntry(self.keyword_scroll, width=120, placeholder_text="DD.MM.YYYY")
         date_ent.insert(0, cutoff)
-        date_ent.grid(row=row_index, column=3, sticky="w", padx=(4, 5), pady=row_pad_y)
+        date_ent.grid(row=row_index, column=3, sticky="w", padx=(5, 5), pady=row_pad_y)
         widgets.append(date_ent)
         
         date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
 
-        check_button = ctk.CTkButton(self.keyword_scroll, text="Check", width=130, command=lambda k=kw: self.check_callback(k))
-        check_button.grid(row=row_index, column=4, sticky="w", padx=5, pady=row_pad_y)
+        check_button = ctk.CTkButton(self.keyword_scroll, text="Check", width=90, command=lambda k=kw: self.check_callback(k))
+        check_button.grid(row=row_index, column=4, sticky="ew", padx=5, pady=row_pad_y)
         widgets.append(check_button)
 
-        delete_button = ctk.CTkButton(self.keyword_scroll, text="Delete", width=100, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k))
-        delete_button.grid(row=row_index, column=5, sticky="w", padx=(5, 10), pady=row_pad_y)
+        delete_button = ctk.CTkButton(self.keyword_scroll, text="Delete", width=80, fg_color="red", hover_color="darkred", command=lambda k=kw: self.remove_keyword(k))
+        delete_button.grid(row=row_index, column=5, sticky="ew", padx=(5, 10), pady=row_pad_y)
         widgets.append(delete_button)
 
         self.keyword_widgets[kw] = {
