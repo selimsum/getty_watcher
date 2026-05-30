@@ -96,12 +96,6 @@ class StateManager:
     def get_seen_images(self, keyword):
         return self.data.setdefault("seen_images", {}).get(keyword, [])
 
-    def mark_image_seen(self, keyword, image_id):
-        seen = self.data.setdefault("seen_images", {}).setdefault(keyword, [])
-        if image_id not in seen:
-            seen.append(image_id)
-            self.save_data()
-            
     def update_seen_images(self, keyword, new_ids):
         """Bulk update to avoid too many writes"""
         seen = self.data.setdefault("seen_images", {}).setdefault(keyword, [])

@@ -124,11 +124,11 @@ def test_image_tracking(state_manager):
     """Test tracking seen images for keywords."""
     assert state_manager.get_seen_images("cats") == []
 
-    state_manager.mark_image_seen("cats", "img1")
+    state_manager.update_seen_images("cats", ["img1"])
     assert state_manager.get_seen_images("cats") == ["img1"]
 
     # Test marking duplicate
-    state_manager.mark_image_seen("cats", "img1")
+    state_manager.update_seen_images("cats", ["img1"])
     assert state_manager.get_seen_images("cats") == ["img1"]
 
     # Test bulk update
@@ -188,9 +188,9 @@ def test_thread_safety(state_manager):
         for i in range(count):
             # Try to induce a race condition by doing small sleeps if needed,
             # but usually just rapid calls with GIL might not trigger it unless we're unlucky.
-            # Using the lock in mark_image_seen (via save_data) should protect the file,
+            # Using the lock in update_seen_images (via save_data) should protect the file,
             # but let's test if we can run many threads.
-            state_manager.mark_image_seen("shared_kw", f"img_{thread_id}_{i}")
+            state_manager.update_seen_images("shared_kw", [f"img_{thread_id}_{i}"])
 
     threads = []
     num_threads = 10
