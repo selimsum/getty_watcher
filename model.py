@@ -108,11 +108,10 @@ class StateManager:
         changed = False
         
         seen_set = set(seen)
-        for img_id in new_ids:
-            if img_id not in seen_set:
-                seen.append(img_id)
-                seen_set.add(img_id)
-                changed = True
+        new_unique = [img_id for img_id in dict.fromkeys(new_ids) if img_id not in seen_set]
+        if new_unique:
+            seen.extend(new_unique)
+            changed = True
         
         if changed:
             if len(seen) > MAX_HISTORY:
