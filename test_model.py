@@ -5,7 +5,6 @@ import pytest
 from unittest.mock import patch
 import model
 import main
-import time
 
 @pytest.fixture
 def temp_data_file(tmp_path):
