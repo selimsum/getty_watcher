@@ -1,10 +1,66 @@
-from playwright.sync_api import sync_playwright
-from playwright_stealth import Stealth
 import time
 import urllib.parse
 import datetime
 import re
 import random
+import sys
+import os
+import subprocess
+
+def ensure_playwright_browsers():
+    """Ensures that playwright is installed and its browser binaries are available."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("[Scraper] Playwright python package is not installed. Attempting to install...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
+            print("[Scraper] Playwright python package installed successfully.")
+        except Exception as e:
+            print(f"[Scraper] Failed to install Playwright package: {e}")
+            return False
+
+    try:
+        from playwright_stealth import Stealth
+    except ImportError:
+        print("[Scraper] Playwright-stealth python package is not installed. Attempting to install...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright-stealth"], check=True)
+            print("[Scraper] Playwright-stealth python package installed successfully.")
+        except Exception as e:
+            print(f"[Scraper] Failed to install Playwright-stealth package: {e}")
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            browser.close()
+        return True
+    except Exception as e:
+        error_msg = str(e)
+        if "Executable doesn't exist" in error_msg or "playwright install" in error_msg:
+            print("[Scraper] Playwright browser binaries not found or outdated. Installing firefox...")
+            try:
+                env = os.environ.copy()
+                result = subprocess.run(
+                    [sys.executable, "-m", "playwright", "install", "firefox"],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    print("[Scraper] Playwright firefox browser installed successfully!")
+                    return True
+                else:
+                    print(f"[Scraper] Playwright installation failed with exit code {result.returncode}.\nError: {result.stderr}")
+                    return False
+            except Exception as ex:
+                print(f"[Scraper] Failed to run playwright install command: {ex}")
+                return False
+        else:
+            print(f"[Scraper] Error verifying Playwright installation: {e}")
+            return False
+
 
 class GettyScraper:
     def __init__(self):
@@ -37,6 +93,13 @@ class GettyScraper:
         keep_scraping = True
         
         try:
+            if not ensure_playwright_browsers():
+                print("[Scraper] Playwright browser is not ready. Aborting scrape.")
+                return results
+
+            from playwright.sync_api import sync_playwright
+            from playwright_stealth import Stealth
+
             with sync_playwright() as p:
                 browser = p.firefox.launch(headless=True)
                 context = browser.new_context(user_agent=self.user_agent)
@@ -167,6 +230,12 @@ class GettyScraper:
         print(f"[Scraper] Batch fetching {len(page_urls)} URLs...")
         
         try:
+            if not ensure_playwright_browsers():
+                print("[Scraper] Playwright browser is not ready. Aborting batch fetch.")
+                return results
+
+            from playwright.sync_api import sync_playwright
+
             with sync_playwright() as p:
                 browser = p.firefox.launch(headless=True)
                 context = browser.new_context(user_agent=self.user_agent)
