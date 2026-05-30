@@ -79,7 +79,7 @@ def test_parse_iso_date_empty(app_instance):
 def test_download_file_timeout(mock_open, mock_get, app_instance):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.content = b"image data"
+    mock_resp.iter_content.return_value = [b"image data"]
     mock_get.return_value = mock_resp
 
     url = "https://example.com/image.jpg"
@@ -104,7 +104,7 @@ def test_download_file_retry_timeout(mock_open, mock_sleep, mock_get, app_instan
 
     resp_200 = MagicMock()
     resp_200.status_code = 200
-    resp_200.content = b"image data"
+    resp_200.iter_content.return_value = [b"image data"]
 
     mock_get.side_effect = [resp_429, resp_200]
 
