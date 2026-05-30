@@ -15,6 +15,7 @@ def app_instance():
     app._parse_iso_date = App._parse_iso_date.__get__(app, App)
     app._download_file = App._download_file.__get__(app, App)
     app.save_settings = App.save_settings.__get__(app, App)
+    app._get_download_path = App._get_download_path.__get__(app, App)
     app.log = MagicMock()
     return app
 
@@ -148,3 +149,21 @@ def test_save_settings_error_path(mock_makedirs, app_instance):
     # Verify we returned early and didn't save settings
     app_instance.state_manager.set_setting.assert_not_called()
     app_instance._refresh_save_location.assert_not_called()
+
+def test_get_download_path_sanitization(app_instance):
+    keyword = "test-keyword"
+    img_data = {
+        'id': '../../../../etc/passwd',
+        'title': 'Test Title',
+        'date': '2023-05-15T10:30:00Z'
+    }
+    # Expected formatted date: 2023.05.15
+    # Expected safe_title: Test Title
+    # Expected img_id: etcpasswd
+    filename, download_dir = app_instance._get_download_path(keyword, img_data, download_dir="downloads/")
+
+    assert filename == "2023.05.15 Test Title etcpasswd.jpg"
+    assert download_dir == "downloads/"
+    assert ".." not in filename
+    assert "/" not in filename
+    assert "\\" not in filename

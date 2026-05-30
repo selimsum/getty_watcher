@@ -735,7 +735,7 @@ class App(ctk.CTk):
                 pass
         
         safe_title = re.sub(r'[^\w\s]', '', img_data['title']).strip()
-        img_id = img_data['id']
+        img_id = re.sub(r'[^\w\s-]', '', str(img_data['id'])).strip()
         ext = ".jpg"
         
         fixed_len = len(formatted_date) + 2 + len(img_id) + len(ext)
