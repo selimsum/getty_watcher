@@ -13,6 +13,7 @@ class StateManager:
     def __init__(self):
         self.lock = threading.Lock()
         self.data = self._load_data()
+        self._seen_sets = {kw: set(images) for kw, images in self.data.get("seen_images", {}).items()}
 
     def _load_data(self):
         default_data = {
@@ -73,11 +74,13 @@ class StateManager:
         for keyword in list(seen_images):
             if active_keywords and keyword not in active_keywords:
                 del seen_images[keyword]
+                self._seen_sets.pop(keyword, None)
                 continue
 
             seen = seen_images[keyword]
             if isinstance(seen, list) and len(seen) > MAX_HISTORY:
                 seen_images[keyword] = seen[-MAX_HISTORY:]
+                self._seen_sets[keyword] = set(seen_images[keyword])
 
     def get_keywords(self):
         return self.data.get("keywords", [])
@@ -86,11 +89,13 @@ class StateManager:
         if keyword not in self.data["keywords"]:
             self.data["keywords"].append(keyword)
             self.data.setdefault("seen_images", {}).setdefault(keyword, [])
+            self._seen_sets.setdefault(keyword, set())
             self.save_data()
 
     def remove_keyword(self, keyword):
         if keyword in self.data["keywords"]:
             self.data["keywords"].remove(keyword)
+            self._seen_sets.pop(keyword, None)
             self.save_data()
 
     def get_seen_images(self, keyword):
@@ -98,16 +103,22 @@ class StateManager:
 
     def mark_image_seen(self, keyword, image_id):
         seen = self.data.setdefault("seen_images", {}).setdefault(keyword, [])
-        if image_id not in seen:
+        if keyword not in self._seen_sets:
+            self._seen_sets[keyword] = set(seen)
+        seen_set = self._seen_sets[keyword]
+        if image_id not in seen_set:
             seen.append(image_id)
+            seen_set.add(image_id)
             self.save_data()
             
     def update_seen_images(self, keyword, new_ids):
         """Bulk update to avoid too many writes"""
         seen = self.data.setdefault("seen_images", {}).setdefault(keyword, [])
+        if keyword not in self._seen_sets:
+            self._seen_sets[keyword] = set(seen)
+        seen_set = self._seen_sets[keyword]
         changed = False
         
-        seen_set = set(seen)
         for img_id in new_ids:
             if img_id not in seen_set:
                 seen.append(img_id)
@@ -117,6 +128,7 @@ class StateManager:
         if changed:
             if len(seen) > MAX_HISTORY:
                 self.data["seen_images"][keyword] = seen[-MAX_HISTORY:]
+                self._seen_sets[keyword] = set(self.data["seen_images"][keyword])
             self.save_data()
 
 
