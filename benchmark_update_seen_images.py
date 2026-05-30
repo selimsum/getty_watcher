@@ -6,9 +6,11 @@ def baseline(seen_list, new_ids):
     changed = False
 
     start = time.perf_counter()
+    seen_set = set(seen)
     for img_id in new_ids:
-        if img_id not in seen:
+        if img_id not in seen_set:
             seen.append(img_id)
+            seen_set.add(img_id)
             changed = True
     end = time.perf_counter()
     return end - start
