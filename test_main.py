@@ -14,6 +14,7 @@ def app_instance():
     app._parse_date = App._parse_date.__get__(app, App)
     app._parse_iso_date = App._parse_iso_date.__get__(app, App)
     app._download_file = App._download_file.__get__(app, App)
+    app.save_settings = App.save_settings.__get__(app, App)
     app.log = MagicMock()
     return app
 
@@ -118,3 +119,32 @@ def test_download_file_retry_timeout(mock_open, mock_sleep, mock_get, app_instan
         _, kwargs = call
         assert "timeout" in kwargs
         assert kwargs["timeout"] == 15
+
+@patch("main.os.makedirs")
+@patch("main.DEFAULT_DOWNLOAD_DIR", "mocked_default_dir")
+def test_save_settings_error_path(mock_makedirs, app_instance):
+    # Setup mocks
+    mock_makedirs.side_effect = Exception("Permission denied")
+
+    app_instance.settings_path_var = MagicMock()
+    app_instance.settings_path_var.get.return_value = "new_dir"
+
+    app_instance._absolute_download_dir = MagicMock()
+    app_instance._absolute_download_dir.return_value = "/mock/new_dir"
+
+    app_instance.settings_feedback_text = MagicMock()
+    app_instance.state_manager = MagicMock()
+    app_instance.settings_notifications_var = MagicMock()
+    app_instance._refresh_save_location = MagicMock()
+
+    # Call method
+    app_instance.save_settings()
+
+    # Assertions
+    app_instance._absolute_download_dir.assert_called_once_with("new_dir")
+    mock_makedirs.assert_called_once_with("/mock/new_dir", exist_ok=True)
+    app_instance.settings_feedback_text.set.assert_called_once_with("Could not use this folder: Permission denied")
+
+    # Verify we returned early and didn't save settings
+    app_instance.state_manager.set_setting.assert_not_called()
+    app_instance._refresh_save_location.assert_not_called()
