@@ -9,7 +9,7 @@ def baseline():
     last_id = None
     cutoff_date = None
     new_images = []
-    seen_for_kw = seen_for_kw_list
+    seen_for_kw = set(seen_for_kw_list)
     max_date_found = None
 
     start = time.perf_counter()
