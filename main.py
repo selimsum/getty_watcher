@@ -752,19 +752,24 @@ class App(ctk.CTk):
             "Referer": "https://www.gettyimages.com/"
         }
         try:
-            resp = requests.get(url, headers=headers, timeout=15)
+            resp = requests.get(url, headers=headers, timeout=15, stream=True)
             if resp.status_code == 429:
+                resp.close()
                 self.log("Rate limit hit! Pausing for 60s...")
                 time.sleep(60)
-                resp = requests.get(url, headers=headers, timeout=15)
+                resp = requests.get(url, headers=headers, timeout=15, stream=True)
             
             if resp.status_code == 200:
                 with open(filepath, "wb") as f:
-                    f.write(resp.content)
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        f.write(chunk)
                 return True
             self.log(f"Download failed: HTTP {resp.status_code}")
         except Exception as e:
             self.log(f"Download Error: {e}")
+        finally:
+            if 'resp' in locals():
+                resp.close()
         return False
 
 if __name__ == "__main__":
