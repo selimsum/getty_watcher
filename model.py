@@ -22,7 +22,8 @@ class StateManager:
                 "auto_download": False,
                 "cutoff_date": "", # format: YYYY-MM-DD
                 "download_dir": DEFAULT_DOWNLOAD_DIR,
-                "notifications_enabled": True
+                "notifications_enabled": True,
+                "use_firefox_cookies": True
             }
         }
         if not os.path.exists(DATA_FILE):

@@ -6,6 +6,7 @@ import random
 import sys
 import os
 import subprocess
+from cookies import get_gettyimages_cookies
 
 def ensure_playwright_browsers():
     """Ensures that playwright is installed and its browser binaries are available."""
@@ -63,8 +64,26 @@ def ensure_playwright_browsers():
 
 
 class GettyScraper:
-    def __init__(self):
+    def __init__(self, use_cookies_fn=None):
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+        self._use_cookies_fn = use_cookies_fn or (lambda: True)
+
+    def _inject_cookies(self, context):
+        """Load Getty cookies from Firefox and inject them into the browser context."""
+        if not self._use_cookies_fn():
+            print("[Scraper] Firefox cookies disabled in settings.")
+            return
+        try:
+            cookies = get_gettyimages_cookies()
+            if cookies:
+                context.add_cookies(cookies)
+                print(f"[Scraper] Injected {len(cookies)} cookies from Firefox.")
+            else:
+                print("[Scraper] No Getty cookies found in Firefox profile.")
+        except FileNotFoundError as e:
+            print(f"[Scraper] Cookie loading skipped: {e}")
+        except Exception as e:
+            print(f"[Scraper] Failed to inject cookies: {e}")
 
     def _is_blocked(self, page, response):
         """Checks if the current page is blocked by a captcha or rate limit."""
@@ -103,6 +122,7 @@ class GettyScraper:
             with sync_playwright() as p:
                 browser = p.firefox.launch(headless=True)
                 context = browser.new_context(user_agent=self.user_agent)
+                self._inject_cookies(context)
                 page = context.new_page()
                 Stealth().apply_stealth_sync(page)
                 
@@ -239,6 +259,7 @@ class GettyScraper:
             with sync_playwright() as p:
                 browser = p.firefox.launch(headless=True)
                 context = browser.new_context(user_agent=self.user_agent)
+                self._inject_cookies(context)
                 page = context.new_page()
 
                 for i, url in enumerate(page_urls):

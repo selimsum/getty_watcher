@@ -21,7 +21,7 @@ from model import DEFAULT_DOWNLOAD_DIR, StateManager
 from scraper import GettyScraper
 
 APP_NAME = "Getty Images Watcher"
-APP_VERSION = "2.1"
+APP_VERSION = "2.2"
 APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images."
 SIDE_PANE_WIDTH = 340
 
@@ -31,7 +31,7 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("LOCALAPPDA
 try:
     import ctypes
     # Change ID to force refresh
-    myappid = 'gettywatcher.v2.1' 
+    myappid = 'gettywatcher.v2.2' 
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except Exception:
     pass
@@ -294,7 +294,7 @@ class App(ctk.CTk):
         self._setup_icon()
         
         self.state_manager = StateManager()
-        self.scraper = GettyScraper()
+        self.scraper = GettyScraper(use_cookies_fn=lambda: self.state_manager.get_setting("use_firefox_cookies") is not False)
         self.is_checking = False
         self.stop_requested = False
         self.toaster = ToastNotifier() if ToastNotifier is not None else None
@@ -307,6 +307,7 @@ class App(ctk.CTk):
         self.save_location_text = tk.StringVar(value=f"Save folder: {self._display_download_dir()}")
         self.settings_path_var = tk.StringVar(value=self._display_download_dir())
         self.settings_notifications_var = tk.BooleanVar(value=self.state_manager.get_setting("notifications_enabled") is not False)
+        self.settings_firefox_cookies_var = tk.BooleanVar(value=self.state_manager.get_setting("use_firefox_cookies") is not False)
         self.settings_feedback_text = tk.StringVar(value="")
 
         self._setup_layout()
@@ -590,12 +591,18 @@ class App(ctk.CTk):
             frame,
             text="Show system notifications",
             variable=self.settings_notifications_var,
-        ).grid(row=4, column=0, padx=16, pady=(4, 12), sticky="w")
+        ).grid(row=4, column=0, padx=16, pady=(4, 6), sticky="w")
 
-        ctk.CTkLabel(frame, textvariable=self.settings_feedback_text, anchor="w", text_color="gray", wraplength=SIDE_PANE_WIDTH - 40).grid(row=5, column=0, padx=16, pady=(0, 12), sticky="ew")
+        ctk.CTkCheckBox(
+            frame,
+            text="Use Firefox cookies (bypass page limit)",
+            variable=self.settings_firefox_cookies_var,
+        ).grid(row=5, column=0, padx=16, pady=(0, 12), sticky="w")
+
+        ctk.CTkLabel(frame, textvariable=self.settings_feedback_text, anchor="w", text_color="gray", wraplength=SIDE_PANE_WIDTH - 40).grid(row=6, column=0, padx=16, pady=(0, 12), sticky="ew")
 
         action_buttons = ctk.CTkFrame(frame, fg_color="transparent")
-        action_buttons.grid(row=6, column=0, padx=16, pady=(4, 18), sticky="ew")
+        action_buttons.grid(row=7, column=0, padx=16, pady=(4, 18), sticky="ew")
         action_buttons.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(action_buttons, text="Reset", command=self.reset_settings_defaults).grid(row=0, column=0, padx=(0, 6), sticky="ew")
         ctk.CTkButton(action_buttons, text="Save", command=self.save_settings).grid(row=0, column=1, padx=(6, 0), sticky="ew")
@@ -655,6 +662,7 @@ class App(ctk.CTk):
 
         self.state_manager.set_setting("download_dir", selected)
         self.state_manager.set_setting("notifications_enabled", bool(self.settings_notifications_var.get()))
+        self.state_manager.set_setting("use_firefox_cookies", bool(self.settings_firefox_cookies_var.get()))
         self._refresh_save_location()
         self.settings_feedback_text.set("Settings saved.")
 
@@ -676,6 +684,7 @@ class App(ctk.CTk):
     def show_settings(self):
         self.settings_path_var.set(self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR)
         self.settings_notifications_var.set(self.state_manager.get_setting("notifications_enabled") is not False)
+        self.settings_firefox_cookies_var.set(self.state_manager.get_setting("use_firefox_cookies") is not False)
         self.settings_feedback_text.set("")
         self._show_side_view("settings")
 
