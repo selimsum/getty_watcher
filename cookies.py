@@ -145,12 +145,21 @@ def _read_cookies_from_db(db_path: str, domains: List[str]) -> List[Dict]:
         cookies = []
         for row in rows:
             same_site_map = {0: "None", 1: "Lax", 2: "Strict"}
+            # Firefox may store expiry in milliseconds; normalize to seconds
+            raw_expiry = row["expiry"]
+            if raw_expiry and raw_expiry > 0:
+                expiry = float(raw_expiry)
+                if expiry > 1e11:  # Clearly milliseconds (year >5138 in seconds)
+                    expiry = expiry / 1000.0
+            else:
+                expiry = -1
+
             cookie = {
                 "name": row["name"],
                 "value": row["value"],
                 "domain": row["host"],
                 "path": row["path"],
-                "expires": float(row["expiry"]) if row["expiry"] else -1,
+                "expires": expiry,
                 "secure": bool(row["isSecure"]),
                 "httpOnly": bool(row["isHttpOnly"]),
                 "sameSite": same_site_map.get(row["sameSite"], "None"),
