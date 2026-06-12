@@ -133,11 +133,9 @@ def _read_cookies_from_db(db_path: str, domains: List[str]) -> List[Dict]:
             where_parts.append("(host = ? OR host = ? OR host = ?)")
             params.extend([clean, "." + clean, "%." + clean])
 
-        query = f"""
-            SELECT host, name, value, path, expiry, isSecure, isHttpOnly, sameSite
-            FROM moz_cookies
-            WHERE {" OR ".join(where_parts)}
-        """
+        query = "SELECT host, name, value, path, expiry, isSecure, isHttpOnly, sameSite FROM moz_cookies"
+        if where_parts:
+            query += " WHERE " + " OR ".join(where_parts)
         cursor.execute(query, params)
         rows = cursor.fetchall()
         conn.close()
