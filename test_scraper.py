@@ -82,3 +82,37 @@ class TestGettyScraper:
         assert calls[0][0][0] == 0.25
         assert calls[1][0][0] == 0.25
         assert round(calls[2][0][0], 1) == 0.1
+
+    @patch.object(GettyScraper, 'get_full_res_urls_batch')
+    def test_get_full_res_url_success(self, mock_batch):
+        scraper = GettyScraper()
+        url = "http://example.com/page1"
+        full_url = "http://example.com/image1.jpg"
+        mock_batch.return_value = {url: full_url}
+
+        result = scraper.get_full_res_url(url)
+
+        mock_batch.assert_called_once_with([url])
+        assert result == full_url
+
+    @patch.object(GettyScraper, 'get_full_res_urls_batch')
+    def test_get_full_res_url_not_found(self, mock_batch):
+        scraper = GettyScraper()
+        url = "http://example.com/page1"
+        mock_batch.return_value = {}
+
+        result = scraper.get_full_res_url(url)
+
+        mock_batch.assert_called_once_with([url])
+        assert result is None
+
+    @patch.object(GettyScraper, 'get_full_res_urls_batch')
+    def test_get_full_res_url_different_url_returned(self, mock_batch):
+        scraper = GettyScraper()
+        url = "http://example.com/page1"
+        mock_batch.return_value = {"http://example.com/otherpage": "http://example.com/image.jpg"}
+
+        result = scraper.get_full_res_url(url)
+
+        mock_batch.assert_called_once_with([url])
+        assert result is None
