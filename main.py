@@ -25,6 +25,9 @@ APP_VERSION = "2.2"
 APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images."
 SIDE_PANE_WIDTH = 340
 
+SAFE_WORD_REGEX = re.compile(r'[^\w\s]')
+SAFE_ID_REGEX = re.compile(r'[^\w\s-]')
+
 # Fix for Playwright in PyInstaller: Force use of local browsers
 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ms-playwright")
 
@@ -539,7 +542,7 @@ class App(ctk.CTk):
         downloaded_count = 0
         
         # Calculate download directory once per keyword batch
-        safe_kw = re.sub(r'[^\w\s]', '', kw).strip()
+        safe_kw = SAFE_WORD_REGEX.sub('', kw).strip()
         base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
         download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
         os.makedirs(download_dir, exist_ok=True)
@@ -729,7 +732,7 @@ class App(ctk.CTk):
 
     def _get_download_path(self, keyword, img_data, download_dir=None):
         if download_dir is None:
-            safe_kw = re.sub(r'[^\w\s]', '', keyword).strip()
+            safe_kw = SAFE_WORD_REGEX.sub('', keyword).strip()
             base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
             download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
             os.makedirs(download_dir, exist_ok=True)
@@ -743,8 +746,8 @@ class App(ctk.CTk):
             except Exception:
                 pass
         
-        safe_title = re.sub(r'[^\w\s]', '', img_data['title']).strip()
-        img_id = re.sub(r'[^\w\s-]', '', str(img_data['id'])).strip()
+        safe_title = SAFE_WORD_REGEX.sub('', img_data['title']).strip()
+        img_id = SAFE_ID_REGEX.sub('', str(img_data['id'])).strip()
         ext = ".jpg"
         
         fixed_len = len(formatted_date) + 2 + len(img_id) + len(ext)
