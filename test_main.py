@@ -3,7 +3,6 @@ import datetime
 from unittest.mock import MagicMock
 from main import App
 
-import builtins
 from unittest.mock import patch
 
 @pytest.fixture
