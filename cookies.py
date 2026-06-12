@@ -130,7 +130,7 @@ def _read_cookies_from_db(db_path: str, domains: List[str]) -> List[Dict]:
         params = []
         for d in domains:
             clean = d.lstrip(".")
-            where_parts.append("(host = ? OR host = ? OR host = ?)")
+            where_parts.append("(host = ? OR host = ? OR host LIKE ?)")
             params.extend([clean, "." + clean, "%." + clean])
 
         query = "SELECT host, name, value, path, expiry, isSecure, isHttpOnly, sameSite FROM moz_cookies"
