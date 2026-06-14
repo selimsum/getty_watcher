@@ -23,7 +23,8 @@ class StateManager:
                 "cutoff_date": "", # format: YYYY-MM-DD
                 "download_dir": DEFAULT_DOWNLOAD_DIR,
                 "notifications_enabled": True,
-                "use_firefox_cookies": True
+                "use_firefox_cookies": True,
+                "media_type": "images" # 'images', 'videos', or 'both'
             }
         }
         if not os.path.exists(DATA_FILE):

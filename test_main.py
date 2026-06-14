@@ -91,7 +91,7 @@ def test_download_file_timeout(mock_open, mock_get, app_instance):
     mock_get.assert_called_once()
     _, kwargs = mock_get.call_args
     assert "timeout" in kwargs
-    assert kwargs["timeout"] == 15
+    assert kwargs["timeout"] == 60
 
 @patch("main.requests.get")
 @patch("main.time.sleep")
@@ -118,7 +118,7 @@ def test_download_file_retry_timeout(mock_open, mock_sleep, mock_get, app_instan
     for call in mock_get.call_args_list:
         _, kwargs = call
         assert "timeout" in kwargs
-        assert kwargs["timeout"] == 15
+        assert kwargs["timeout"] == 60
 
 @patch("main.os.makedirs")
 @patch("main.DEFAULT_DOWNLOAD_DIR", "mocked_default_dir")

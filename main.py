@@ -22,7 +22,7 @@ from scraper import GettyScraper
 
 APP_NAME = "Getty Images Watcher"
 APP_VERSION = "2.2"
-APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images."
+APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images and videos."
 SIDE_PANE_WIDTH = 340
 
 SAFE_WORD_REGEX = re.compile(r'[^\w\s]')
@@ -167,13 +167,15 @@ class KeywordsFrame(ctk.CTkFrame):
         # Col 0: Keyword label (weight=1, sticky="w")
         # Col 1: Status label (weight=0, sticky="w", padx=(10, 20))
         # Col 2: Date frame (weight=0, sticky="e", padx=(10, 15))
-        # Col 3: Check button (weight=0, sticky="e", padx=(0, 6))
-        # Col 4: Delete button (weight=0, sticky="e", padx=(0, 10))
+        # Col 3: Media type dropdown (weight=0, sticky="e")
+        # Col 4: Check button (weight=0, sticky="e", padx=(0, 6))
+        # Col 5: Delete button (weight=0, sticky="e", padx=(0, 10))
         card.grid_columnconfigure(0, weight=1)
         card.grid_columnconfigure(1, weight=0)
         card.grid_columnconfigure(2, weight=0)
         card.grid_columnconfigure(3, weight=0)
         card.grid_columnconfigure(4, weight=0)
+        card.grid_columnconfigure(5, weight=0)
         
         # Keyword Label
         keyword_label = ctk.CTkLabel(
@@ -227,6 +229,19 @@ class KeywordsFrame(ctk.CTkFrame):
         date_ent.bind("<FocusOut>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         
+        # Media Type Dropdown
+        current_media = settings.get("media_type", "images")
+        media_type_dropdown = ctk.CTkOptionMenu(
+            card,
+            values=["Images", "Videos", "Both"],
+            width=90,
+            height=28,
+            font=("Arial", 11),
+            command=lambda val, k=kw: self.save_media_type(k, val)
+        )
+        media_type_dropdown.set(current_media.capitalize())
+        media_type_dropdown.grid(row=0, column=3, sticky="e", padx=(0, 10), pady=8)
+        
         # Action Buttons
         check_button = ctk.CTkButton(
             card,
@@ -235,7 +250,7 @@ class KeywordsFrame(ctk.CTkFrame):
             height=28,
             command=lambda k=kw: self.check_callback(k)
         )
-        check_button.grid(row=0, column=3, sticky="e", padx=(0, 6), pady=8)
+        check_button.grid(row=0, column=4, sticky="e", padx=(0, 6), pady=8)
         
         delete_button = ctk.CTkButton(
             card,
@@ -246,7 +261,7 @@ class KeywordsFrame(ctk.CTkFrame):
             hover_color="darkred",
             command=lambda k=kw: self.remove_keyword(k)
         )
-        delete_button.grid(row=0, column=4, sticky="e", padx=(0, 15), pady=8)
+        delete_button.grid(row=0, column=5, sticky="e", padx=(0, 15), pady=8)
         
         # Store widgets for updates/cleanup
         # Since 'card' is the parent frame containing all these widgets, destroying it clears everything.
@@ -287,6 +302,11 @@ class KeywordsFrame(ctk.CTkFrame):
         entry_widget.configure(border_color=("gray65", "gray25"))
         self.state_manager.set_keyword_setting(keyword, "cutoff_date", val)
         print(f"Set cutoff_date for {keyword} to {val}")
+
+    def save_media_type(self, keyword, value):
+        media_type = value.lower()
+        self.state_manager.set_keyword_setting(keyword, "media_type", media_type)
+        print(f"Set media_type for {keyword} to {media_type}")
 
 class App(ctk.CTk):
     def __init__(self):
@@ -443,7 +463,7 @@ class App(ctk.CTk):
         self.stop_requested = False
         finished_at = datetime.datetime.now().strftime("%d.%m %H:%M")
         self.after(0, lambda count=total_new, timestamp=finished_at: self._finish_check_ui(count, timestamp))
-        self.log(f"Check complete. {total_new} new images found.")
+        self.log(f"Check complete. {total_new} new items found.")
 
     def _finish_check_ui(self, total_new, finished_at):
         self.keywords_view.check_all_button.configure(state="normal")
@@ -457,9 +477,10 @@ class App(ctk.CTk):
         settings = self.state_manager.get_keyword_settings(kw)
         cutoff_date_str = settings.get("cutoff_date", "").strip()
         last_id = settings.get("last_id")
+        media_type = settings.get("media_type", "images")
         
         cutoff_date = self._parse_date(cutoff_date_str)
-        found_images = self.scraper.check_keyword(kw, cutoff_date, should_stop=lambda: self.stop_requested)
+        found_images = self.scraper.check_keyword(kw, cutoff_date, should_stop=lambda: self.stop_requested, media_type=media_type)
         
         new_images = []
         seen_for_kw = set(self.state_manager.get_seen_images(kw))
@@ -513,7 +534,12 @@ class App(ctk.CTk):
 
     def _show_download_toast(self, keyword, count):
         title = "Getty Images Watcher"
-        plural = "image" if count == 1 else "images"
+        settings = self.state_manager.get_keyword_settings(keyword)
+        media_type = settings.get("media_type", "images")
+        if media_type == "videos":
+            plural = "video" if count == 1 else "videos"
+        else:
+            plural = "image" if count == 1 else "images"
         message = f"{count} {plural} downloaded for {keyword}"
         icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
         if not os.path.exists(icon_path):
@@ -534,10 +560,13 @@ class App(ctk.CTk):
             self.log(f"Windows notification failed: {e}")
 
     def _batch_download(self, kw, images):
-        self.log(f"Batch downloading {len(images)} images for {kw}...")
+        self.log(f"Batch downloading {len(images)} items for {kw}...")
+        settings = self.state_manager.get_keyword_settings(kw)
+        media_type = settings.get("media_type", "images")
         url_map = self.scraper.get_full_res_urls_batch(
             [img['url'] for img in images],
             should_stop=lambda: self.stop_requested,
+            media_type=media_type,
         )
         downloaded_count = 0
         
@@ -552,7 +581,7 @@ class App(ctk.CTk):
                 break
             full_url = url_map.get(img['url'])
             if full_url:
-                if self.process_download_with_url(kw, img, full_url, i+1, len(images), download_dir=download_dir):
+                if self.process_download_with_url(kw, img, full_url, i+1, len(images), download_dir=download_dir, media_type=media_type):
                     downloaded_count += 1
             else:
                 self.log(f"Failed to resolve URL for {img['id']}")
@@ -715,8 +744,8 @@ class App(ctk.CTk):
     def _refresh_save_location(self):
         self.save_location_text.set(f"Save folder: {self._display_download_dir()}")
 
-    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None, download_dir=None):
-        filename, computed_download_dir = self._get_download_path(keyword, img_data, download_dir=download_dir)
+    def process_download_with_url(self, keyword, img_data, full_url, index=None, total=None, download_dir=None, media_type="images"):
+        filename, computed_download_dir = self._get_download_path(keyword, img_data, download_dir=download_dir, media_type=media_type)
         filepath = os.path.join(computed_download_dir, filename)
         
         if os.path.exists(filepath):
@@ -730,7 +759,7 @@ class App(ctk.CTk):
 
         return False
 
-    def _get_download_path(self, keyword, img_data, download_dir=None):
+    def _get_download_path(self, keyword, img_data, download_dir=None, media_type="images"):
         if download_dir is None:
             safe_kw = SAFE_WORD_REGEX.sub('', keyword).strip()
             base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
@@ -748,7 +777,7 @@ class App(ctk.CTk):
         
         safe_title = SAFE_WORD_REGEX.sub('', img_data['title']).strip()
         img_id = SAFE_ID_REGEX.sub('', str(img_data['id'])).strip()
-        ext = ".jpg"
+        ext = ".mp4" if media_type == "videos" else ".jpg"
         
         fixed_len = len(formatted_date) + 2 + len(img_id) + len(ext)
         max_title_len = 250 - fixed_len
@@ -764,12 +793,12 @@ class App(ctk.CTk):
             "Referer": "https://www.gettyimages.com/"
         }
         try:
-            resp = requests.get(url, headers=headers, timeout=15, stream=True)
+            resp = requests.get(url, headers=headers, timeout=60, stream=True)
             if resp.status_code == 429:
                 resp.close()
                 self.log("Rate limit hit! Pausing for 60s...")
                 time.sleep(60)
-                resp = requests.get(url, headers=headers, timeout=15, stream=True)
+                resp = requests.get(url, headers=headers, timeout=60, stream=True)
             
             if resp.status_code == 200:
                 with open(filepath, "wb") as f:

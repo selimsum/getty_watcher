@@ -6,6 +6,7 @@ import random
 import sys
 import os
 import subprocess
+import json
 from cookies import get_gettyimages_cookies
 
 def ensure_playwright_browsers():
@@ -96,17 +97,29 @@ class GettyScraper:
         block_keywords = ["captcha", "pardon our interruption", "perimeterx", "are you empty?", "bot-wall", "user validation"]
         return any(kw in content for kw in block_keywords)
 
-    def check_keyword(self, keyword, cutoff_date=None, should_stop=None):
+    def check_keyword(self, keyword, cutoff_date=None, should_stop=None, media_type="images"):
         """
         Scrapes Getty Images for the given keyword.
+        media_type: 'images', 'videos', or 'both'
         If cutoff_date (datetime object) is provided, scrapes until an image older than that date is found.
         Returns a list of dictionaries: {'id': str, 'url': str, 'title': str, 'date': str}
         """
+        if media_type == "both":
+            image_results = self.check_keyword(keyword, cutoff_date, should_stop, "images")
+            if should_stop and should_stop():
+                return image_results
+            video_results = self.check_keyword(keyword, cutoff_date, should_stop, "videos")
+            return image_results + video_results
+
         results = []
         encoded_keyword = urllib.parse.quote(keyword)
-        base_url = f"https://www.gettyimages.com/search/2/image?family=editorial&groupbyevent=false&phrase={encoded_keyword}&sort=newest"
+        if media_type == "videos":
+            base_url = f"https://www.gettyimages.com/search/2/film?phrase={encoded_keyword}&suppressfamilycorrection=true&sort=newest"
+        else:
+            base_url = f"https://www.gettyimages.com/search/2/image?family=editorial&groupbyevent=false&phrase={encoded_keyword}&sort=newest"
         
-        print(f"[Scraper] Checking: {keyword} (Cutoff: {cutoff_date})")
+        type_label = "videos" if media_type == "videos" else "images"
+        print(f"[Scraper] Checking {type_label}: {keyword} (Cutoff: {cutoff_date})")
         
         page_num = 1
         keep_scraping = True
@@ -157,54 +170,92 @@ class GettyScraper:
                         print(f"[Scraper] Failed to load page {page_num}.")
                         break
 
-                    items = page.query_selector_all('article') or page.query_selector_all('[class*="MosaicAsset-module__container"]')
-                    if not items:
-                        print(f"[Scraper] No items found on page {page_num}.")
-                        break
+                    json_assets = []
+                    try:
+                        scripts = page.query_selector_all('script[type="application/json"]')
+                        for script in scripts:
+                            text = script.inner_text() or ""
+                            if '"assets"' in text and '"gallery"' in text:
+                                json_data = json.loads(text)
+                                assets = json_data.get('search', {}).get('gallery', {}).get('assets', [])
+                                if assets:
+                                    json_assets = assets
+                                    break
+                    except Exception as e:
+                        print(f"[Scraper] Error checking page JSON: {e}")
 
-                    print(f"[Scraper] Found {len(items)} items on page {page_num}")
-                    page_new_items_count = 0
-                    
-                    for item in items:
-                        try:
-                            img_id = item.get_attribute('data-unique-id')
-                            link_el = item.query_selector('a[href]')
-                            img_url = f"https://www.gettyimages.com{link_el.get_attribute('href')}" if link_el else ""
+                    parsed_items = []
+                    if json_assets:
+                        print(f"[Scraper] Found {len(json_assets)} items in page JSON data.")
+                        for asset in json_assets:
+                            asset_id = str(asset.get('id', asset.get('assetId', '')))
+                            landing_url = asset.get('landingUrl', '')
+                            img_url = f"https://www.gettyimages.com{landing_url}" if landing_url else ""
+                            title = asset.get('title') or asset.get('altText') or "No Title"
+                            date_str = asset.get('uploadDate', '')
                             
-                            if not img_id and img_url:
-                                match = re.search(r'/(\d+)(?:\?|$)', img_url)
-                                if match:
-                                    img_id = match.group(1)
-
-                            if not img_id:
-                                continue
-
-                            date_el = item.query_selector('meta[itemprop="uploadDate"]')
-                            date_str = date_el.get_attribute('content') if date_el else ""
-                            
-                            if cutoff_date and date_str:
-                                try:
-                                    img_date = datetime.datetime.strptime(date_str[:10], "%Y-%m-%d")
-                                    if img_date < cutoff_date:
-                                        keep_scraping = False
-                                        print(f"[Scraper] Reached cutoff date ({img_date} < {cutoff_date}).")
-                                        break 
-                                except Exception:
-                                    pass
-
-                            img_el = item.query_selector('img')
-                            title = img_el.get_attribute('alt') if img_el else "No Title"
-
-                            if img_id and img_url:
-                                results.append({
-                                    'id': img_id,
+                            if asset_id and img_url:
+                                parsed_items.append({
+                                    'id': asset_id,
                                     'url': img_url,
                                     'title': title,
                                     'date': date_str
                                 })
-                                page_new_items_count += 1
-                        except Exception as e:
-                            print(f"Error parsing item: {e}")
+                    else:
+                        items = page.query_selector_all('article') or page.query_selector_all('[class*="MosaicAsset-module__container"]')
+                        if not items:
+                            print(f"[Scraper] No items found on page {page_num}.")
+                            break
+                        print(f"[Scraper] Found {len(items)} items on page {page_num}")
+                        for item in items:
+                            try:
+                                img_id = item.get_attribute('data-unique-id')
+                                link_el = item.query_selector('a[href]')
+                                img_url = f"https://www.gettyimages.com{link_el.get_attribute('href')}" if link_el else ""
+                                
+                                if not img_id and img_url:
+                                    match = re.search(r'/(\d+)(?:\?|$)', img_url)
+                                    if match:
+                                        img_id = match.group(1)
+
+                                if not img_id:
+                                    continue
+
+                                date_el = item.query_selector('meta[itemprop="uploadDate"]')
+                                date_str = date_el.get_attribute('content') if date_el else ""
+                                
+                                img_el = item.query_selector('img')
+                                title = img_el.get_attribute('alt') if img_el else "No Title"
+
+                                if img_id and img_url:
+                                    parsed_items.append({
+                                        'id': img_id,
+                                        'url': img_url,
+                                        'title': title,
+                                        'date': date_str
+                                    })
+                            except Exception as e:
+                                print(f"Error parsing item: {e}")
+
+                    page_new_items_count = 0
+                    for item_data in parsed_items:
+                        img_id = item_data['id']
+                        img_url = item_data['url']
+                        title = item_data['title']
+                        date_str = item_data['date']
+                        
+                        if cutoff_date and date_str:
+                            try:
+                                img_date = datetime.datetime.strptime(date_str[:10], "%Y-%m-%d")
+                                if img_date < cutoff_date:
+                                    keep_scraping = False
+                                    print(f"[Scraper] Reached cutoff date ({img_date} < {cutoff_date}).")
+                                    break
+                            except Exception:
+                                pass
+                        
+                        results.append(item_data)
+                        page_new_items_count += 1
 
                     if results and page_new_items_count > 0:
                         current_page_first_id = results[-page_new_items_count]['id']
@@ -233,6 +284,38 @@ class GettyScraper:
         res = self.get_full_res_urls_batch([page_url])
         return res.get(page_url)
 
+    def _extract_video_urls_from_page(self, content):
+        """
+        Extract video mp4 URLs from a Getty Images video detail page.
+        Tries JSON-LD, embedded JSON, and video/source elements.
+        """
+        urls = []
+
+        # 1. JSON-LD VideoObject contentUrl
+        for match in re.finditer(r'"contentUrl"\s*:\s*"([^"]*?\.mp4[^"]*?)"', content):
+            url = match.group(1).replace(r'\u0026', '&').replace('&amp;', '&')
+            urls.append(url)
+
+        # 2. Any media.gettyimages.com .mp4 URL in the page source
+        for match in re.finditer(r'(?:"|\')(https?://media\.gettyimages\.com/[^"\']*?\.mp4[^"\']*)(?:"|\')', content):
+            url = match.group(1).replace(r'\u0026', '&').replace('&amp;', '&')
+            urls.append(url)
+
+        # 3. <video> or <source> element src attributes
+        for match in re.finditer(r'<(?:video|source)[^>]+src=["\']([^"\']+\.mp4[^"\']*)["\']', content):
+            url = match.group(1).replace(r'\u0026', '&').replace('&amp;', '&')
+            urls.append(url)
+
+        # Deduplicate while preserving order (earliest match = highest priority)
+        seen = set()
+        unique_urls = []
+        for url in urls:
+            if url not in seen:
+                seen.add(url)
+                unique_urls.append(url)
+
+        return unique_urls
+
     def _stop_aware_sleep(self, seconds, should_stop=None):
         end_time = time.time() + seconds
         while time.time() < end_time:
@@ -241,13 +324,14 @@ class GettyScraper:
             time.sleep(min(0.25, end_time - time.time()))
         return False
 
-    def get_full_res_urls_batch(self, page_urls, should_stop=None):
+    def get_full_res_urls_batch(self, page_urls, should_stop=None, media_type="images"):
         """Fetches full resolution URLs for a list of page URLs in a single browser session."""
         results = {}
         if not page_urls:
             return results
 
-        print(f"[Scraper] Batch fetching {len(page_urls)} URLs...")
+        type_label = "videos" if media_type == "videos" else "images"
+        print(f"[Scraper] Batch fetching {len(page_urls)} {type_label} URLs...")
         
         try:
             if not ensure_playwright_browsers():
@@ -287,13 +371,21 @@ class GettyScraper:
                                 continue
                             
                             content = page.content()
-                            match = re.search(r'"largeMainImageURL":"([^"]+)"', content)
-                            if match:
-                                full_url = match.group(1).replace(r'\u0026', '&')
-                                results[url] = full_url
-                                break
+                            if media_type == "videos":
+                                video_urls = self._extract_video_urls_from_page(content)
+                                if video_urls:
+                                    results[url] = video_urls[0]
+                                    break
+                                else:
+                                    print(f"[Scraper] Could not find video URL for {url}")
                             else:
-                                print(f"[Scraper] Could not find URL for {url}")
+                                match = re.search(r'"largeMainImageURL":"([^"]+)"', content)
+                                if match:
+                                    full_url = match.group(1).replace(r'\u0026', '&')
+                                    results[url] = full_url
+                                    break
+                                else:
+                                    print(f"[Scraper] Could not find URL for {url}")
                                 
                         except Exception as e:
                             print(f"[Scraper] Error fetching {url}: {e}")
