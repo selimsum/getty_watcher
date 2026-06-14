@@ -148,6 +148,7 @@ class GettyScraper:
                 Stealth().apply_stealth_sync(page)
                 
                 last_page_first_id = None
+                end_of_results = False
                 
                 while keep_scraping:
                     if should_stop and should_stop():
@@ -171,11 +172,43 @@ class GettyScraper:
                             success = True
                             break
                         except Exception as e:
+                            error_str = str(e).lower()
+                            is_timeout = "timeout" in error_str
+
+                            if is_timeout:
+                                # Page loaded but no items — check if this is end of results
+                                try:
+                                    has_json_items = False
+                                    scripts = page.query_selector_all('script[type="application/json"]')
+                                    for script in scripts:
+                                        text = script.inner_text() or ""
+                                        if '"assets"' in text and '"gallery"' in text:
+                                            data = json.loads(text)
+                                            if data.get('search', {}).get('gallery', {}).get('assets', []):
+                                                has_json_items = True
+                                                break
+
+                                    has_dom_items = bool(
+                                        page.query_selector_all('article')
+                                        or page.query_selector_all('[class*="MosaicAsset-module__container"]')
+                                    )
+
+                                    if not has_json_items and not has_dom_items:
+                                        print(f"[Scraper] No more results at page {page_num}.")
+                                        success = True  # Mark as done, not as error
+                                        end_of_results = True
+                                        break
+                                except Exception:
+                                    pass
+
                             print(f"[Scraper] Error on page {page_num} (Attempt {attempt+1}): {e}")
                             time.sleep(5)
                     
                     if not success:
                         print(f"[Scraper] Failed to load page {page_num}.")
+                        break
+
+                    if end_of_results:
                         break
 
                     json_assets = []
