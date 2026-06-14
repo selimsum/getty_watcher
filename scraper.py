@@ -9,6 +9,15 @@ import subprocess
 import json
 from cookies import get_gettyimages_cookies
 
+def _get_clean_env():
+    """Returns a clean environment dictionary with only safe keys."""
+    clean_env = {}
+    safe_keys = ["PATH", "SYSTEMROOT", "USERPROFILE", "HOME", "TEMP", "TMP"]
+    for key in safe_keys:
+        if key in os.environ:
+            clean_env[key] = os.environ[key]
+    return clean_env
+
 def ensure_playwright_browsers():
     """Ensures that playwright is installed and its browser binaries are available."""
     try:
@@ -16,7 +25,7 @@ def ensure_playwright_browsers():
     except ImportError:
         print("[Scraper] Playwright python package is not installed. Attempting to install...")
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], env=_get_clean_env(), check=True)
             print("[Scraper] Playwright python package installed successfully.")
         except Exception as e:
             print(f"[Scraper] Failed to install Playwright package: {e}")
@@ -27,7 +36,7 @@ def ensure_playwright_browsers():
     except ImportError:
         print("[Scraper] Playwright-stealth python package is not installed. Attempting to install...")
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "playwright-stealth"], check=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright-stealth"], env=_get_clean_env(), check=True)
             print("[Scraper] Playwright-stealth python package installed successfully.")
         except Exception as e:
             print(f"[Scraper] Failed to install Playwright-stealth package: {e}")
@@ -43,10 +52,9 @@ def ensure_playwright_browsers():
         if "Executable doesn't exist" in error_msg or "playwright install" in error_msg:
             print("[Scraper] Playwright browser binaries not found or outdated. Installing firefox...")
             try:
-                env = os.environ.copy()
                 result = subprocess.run(
                     [sys.executable, "-m", "playwright", "install", "firefox"],
-                    env=env,
+                    env=_get_clean_env(),
                     capture_output=True,
                     text=True
                 )
