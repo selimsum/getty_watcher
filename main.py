@@ -21,7 +21,7 @@ from model import DEFAULT_DOWNLOAD_DIR, StateManager
 from scraper import GettyScraper
 
 APP_NAME = "Getty Images Watcher"
-APP_VERSION = "2.2"
+APP_VERSION = "2.3"
 APP_DESCRIPTION = "Monitors Getty Images keywords and downloads newly discovered images and videos."
 SIDE_PANE_WIDTH = 340
 
@@ -34,7 +34,7 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("LOCALAPPDA
 try:
     import ctypes
     # Change ID to force refresh
-    myappid = 'gettywatcher.v2.2' 
+    myappid = 'gettywatcher.v2.3'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except Exception:
     pass
@@ -596,6 +596,7 @@ class App(ctk.CTk):
         safe_kw = SAFE_WORD_REGEX.sub('', kw).strip()
         base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
         download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
+        video_dir = os.path.join(download_dir, "video")
         os.makedirs(download_dir, exist_ok=True)
 
         downloaded_count = 0
@@ -632,7 +633,7 @@ class App(ctk.CTk):
                     break
                 full_url = url_map.get(img['url'])
                 if full_url:
-                    if self.process_download_with_url(kw, img, full_url, downloaded_count + 1, total, download_dir=download_dir, media_type="videos"):
+                    if self.process_download_with_url(kw, img, full_url, downloaded_count + 1, total, download_dir=video_dir, media_type="videos"):
                         downloaded_count += 1
                 else:
                     self.log(f"Failed to resolve video URL for {img['id']}")

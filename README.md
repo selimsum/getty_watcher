@@ -2,7 +2,7 @@
 
 A desktop application that monitors [Getty Images](https://www.gettyimages.com) editorial search results for user-defined keywords and automatically downloads newly discovered images. Built with Python, CustomTkinter, and Playwright.
 
-![Version](https://img.shields.io/badge/version-2.2-blue)
+![Version](https://img.shields.io/badge/version-2.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 

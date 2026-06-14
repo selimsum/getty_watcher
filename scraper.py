@@ -73,6 +73,14 @@ def ensure_playwright_browsers():
 
 
 class GettyScraper:
+    # Firefox preferences to block media autoplay and mute audio
+    _MUTED_PREFS = {
+        "media.autoplay.default": 5,
+        "media.autoplay.ask-permission": True,
+        "media.autoplay.blocking_policy": 3,
+        "media.volume": 0.0,
+    }
+
     def __init__(self, use_cookies_fn=None):
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
         self._use_cookies_fn = use_cookies_fn or (lambda: True)
@@ -142,7 +150,7 @@ class GettyScraper:
             from playwright_stealth import Stealth
 
             with sync_playwright() as p:
-                browser = p.firefox.launch(headless=True)
+                browser = p.firefox.launch(headless=True, firefox_user_prefs=self._MUTED_PREFS)
                 context = browser.new_context(user_agent=self.user_agent)
                 self._inject_cookies(context)
                 page = context.new_page()
@@ -385,7 +393,7 @@ class GettyScraper:
             from playwright.sync_api import sync_playwright
 
             with sync_playwright() as p:
-                browser = p.firefox.launch(headless=True)
+                browser = p.firefox.launch(headless=True, firefox_user_prefs=self._MUTED_PREFS)
                 context = browser.new_context(user_agent=self.user_agent)
                 self._inject_cookies(context)
                 page = context.new_page()
