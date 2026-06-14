@@ -121,6 +121,7 @@ class GettyScraper:
 
         results = []
         encoded_keyword = urllib.parse.quote(keyword)
+        item_type = "video" if media_type == "videos" else "image"
         if media_type == "videos":
             base_url = f"https://www.gettyimages.com/search/2/film?phrase={encoded_keyword}&suppressfamilycorrection=true&sort=newest"
         else:
@@ -240,7 +241,8 @@ class GettyScraper:
                                     'id': asset_id,
                                     'url': img_url,
                                     'title': title,
-                                    'date': date_str
+                                    'date': date_str,
+                                    'type': item_type
                                 })
                     else:
                         items = page.query_selector_all('article') or page.query_selector_all('[class*="MosaicAsset-module__container"]')
@@ -273,7 +275,8 @@ class GettyScraper:
                                         'id': img_id,
                                         'url': img_url,
                                         'title': title,
-                                        'date': date_str
+                                        'date': date_str,
+                                        'type': item_type
                                     })
                             except Exception as e:
                                 print(f"Error parsing item: {e}")

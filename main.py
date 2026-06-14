@@ -484,20 +484,44 @@ class App(ctk.CTk):
         
         new_images = []
         seen_for_kw = set(self.state_manager.get_seen_images(kw))
-        max_date_found = cutoff_date 
+        max_date_found = cutoff_date
+        skipped_seen = 0
+        skipped_cutoff = 0
+        skipped_last_id = 0
 
         for img in found_images:
             img_date = self._parse_iso_date(img.get('date'))
             if img_date and (max_date_found is None or img_date > max_date_found):
                 max_date_found = img_date
             
-            if (last_id and img['id'] == last_id) or (img['id'] in seen_for_kw):
+            if last_id and img['id'] == last_id:
+                skipped_last_id += 1
+                continue
+
+            if img['id'] in seen_for_kw:
+                skipped_seen += 1
                 continue
 
             if cutoff_date and img_date and img_date < cutoff_date:
+                skipped_cutoff += 1
                 continue 
             
             new_images.append(img)
+
+        total_found = len(found_images)
+        total_new = len(new_images)
+        total_skipped = skipped_seen + skipped_cutoff + skipped_last_id
+        if total_skipped > 0:
+            parts = []
+            if skipped_seen:
+                parts.append(f"{skipped_seen} already seen")
+            if skipped_cutoff:
+                parts.append(f"{skipped_cutoff} before cutoff")
+            if skipped_last_id:
+                parts.append(f"{skipped_last_id} at last_id")
+            self.log(f"Found {total_found} items, {total_new} new ({', '.join(parts)} skipped)")
+        else:
+            self.log(f"Found {total_found} items, {total_new} new")
 
         if new_images:
             self.state_manager.update_seen_images(kw, [img['id'] for img in new_images])
@@ -538,8 +562,10 @@ class App(ctk.CTk):
         media_type = settings.get("media_type", "both")
         if media_type == "videos":
             plural = "video" if count == 1 else "videos"
-        else:
+        elif media_type == "images":
             plural = "image" if count == 1 else "images"
+        else:
+            plural = "item" if count == 1 else "items"
         message = f"{count} {plural} downloaded for {keyword}"
         icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
         if not os.path.exists(icon_path):
@@ -561,30 +587,55 @@ class App(ctk.CTk):
 
     def _batch_download(self, kw, images):
         self.log(f"Batch downloading {len(images)} items for {kw}...")
-        settings = self.state_manager.get_keyword_settings(kw)
-        media_type = settings.get("media_type", "both")
-        url_map = self.scraper.get_full_res_urls_batch(
-            [img['url'] for img in images],
-            should_stop=lambda: self.stop_requested,
-            media_type=media_type,
-        )
-        downloaded_count = 0
-        
+
+        # Split items by their actual type tag
+        image_items = [img for img in images if img.get('type') != 'video']
+        video_items = [img for img in images if img.get('type') == 'video']
+
         # Calculate download directory once per keyword batch
         safe_kw = SAFE_WORD_REGEX.sub('', kw).strip()
         base_dir = self.state_manager.get_setting("download_dir") or DEFAULT_DOWNLOAD_DIR
         download_dir = os.path.join(self._absolute_download_dir(base_dir), safe_kw)
         os.makedirs(download_dir, exist_ok=True)
 
-        for i, img in enumerate(images):
-            if self.stop_requested:
-                break
-            full_url = url_map.get(img['url'])
-            if full_url:
-                if self.process_download_with_url(kw, img, full_url, i+1, len(images), download_dir=download_dir, media_type=media_type):
-                    downloaded_count += 1
-            else:
-                self.log(f"Failed to resolve URL for {img['id']}")
+        downloaded_count = 0
+        total = len(images)
+
+        # Process images
+        if image_items:
+            self.log(f"Fetching full-res URLs for {len(image_items)} images...")
+            url_map = self.scraper.get_full_res_urls_batch(
+                [img['url'] for img in image_items],
+                should_stop=lambda: self.stop_requested,
+                media_type="images",
+            )
+            for img in image_items:
+                if self.stop_requested:
+                    break
+                full_url = url_map.get(img['url'])
+                if full_url:
+                    if self.process_download_with_url(kw, img, full_url, downloaded_count + 1, total, download_dir=download_dir, media_type="images"):
+                        downloaded_count += 1
+                else:
+                    self.log(f"Failed to resolve URL for {img['id']}")
+
+        # Process videos
+        if video_items:
+            self.log(f"Fetching video URLs for {len(video_items)} videos...")
+            url_map = self.scraper.get_full_res_urls_batch(
+                [img['url'] for img in video_items],
+                should_stop=lambda: self.stop_requested,
+                media_type="videos",
+            )
+            for img in video_items:
+                if self.stop_requested:
+                    break
+                full_url = url_map.get(img['url'])
+                if full_url:
+                    if self.process_download_with_url(kw, img, full_url, downloaded_count + 1, total, download_dir=download_dir, media_type="videos"):
+                        downloaded_count += 1
+                else:
+                    self.log(f"Failed to resolve video URL for {img['id']}")
 
         self.log(f"Download complete for {kw}. {downloaded_count} files saved.")
         return downloaded_count
