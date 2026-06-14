@@ -230,7 +230,7 @@ class KeywordsFrame(ctk.CTkFrame):
         date_ent.bind("<Return>", lambda e, k=kw, ent=date_ent: self.save_date(k, ent))
         
         # Media Type Dropdown
-        current_media = settings.get("media_type", "images")
+        current_media = settings.get("media_type", "both")
         media_type_dropdown = ctk.CTkOptionMenu(
             card,
             values=["Images", "Videos", "Both"],
@@ -312,7 +312,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title(APP_NAME)
-        self.geometry("1100x600")
+        self.geometry("1300x600")
         
         self._setup_icon()
         
@@ -477,7 +477,7 @@ class App(ctk.CTk):
         settings = self.state_manager.get_keyword_settings(kw)
         cutoff_date_str = settings.get("cutoff_date", "").strip()
         last_id = settings.get("last_id")
-        media_type = settings.get("media_type", "images")
+        media_type = settings.get("media_type", "both")
         
         cutoff_date = self._parse_date(cutoff_date_str)
         found_images = self.scraper.check_keyword(kw, cutoff_date, should_stop=lambda: self.stop_requested, media_type=media_type)
@@ -535,7 +535,7 @@ class App(ctk.CTk):
     def _show_download_toast(self, keyword, count):
         title = "Getty Images Watcher"
         settings = self.state_manager.get_keyword_settings(keyword)
-        media_type = settings.get("media_type", "images")
+        media_type = settings.get("media_type", "both")
         if media_type == "videos":
             plural = "video" if count == 1 else "videos"
         else:
@@ -562,7 +562,7 @@ class App(ctk.CTk):
     def _batch_download(self, kw, images):
         self.log(f"Batch downloading {len(images)} items for {kw}...")
         settings = self.state_manager.get_keyword_settings(kw)
-        media_type = settings.get("media_type", "images")
+        media_type = settings.get("media_type", "both")
         url_map = self.scraper.get_full_res_urls_batch(
             [img['url'] for img in images],
             should_stop=lambda: self.stop_requested,
